@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Job #{{ '%04d' % job.jobID }} – DAS Maintenance{% endblock %}
+{% block content %}
+<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+    <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <a href="{{ url_for('view_jobs', filter='all') }}" style="color:var(--text-muted);font-size:13px;text-decoration:none;">← Back to Jobs</a>
+        </div>
+        <h1>Job <span style="color:var(--accent);font-family:var(--font-mono);font-size:22px;">#{{ '%04d' % job.jobID }}</span></h1>
+        {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
+        <div style="margin-top: 15px;">
+            <form method="POST" action="{{ url_for('delete_job', job_id=job.jobID) }}" 
+                onsubmit="return confirm('WARNING: This will permanently delete this job and all its history. Proceed?')">
+                <button type="submit" class="btn btn-danger btn-sm" style="background-color: #dc3545; color: white;">
+                    🗑 Delete Job
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    <span class="badge badge-{{ job.status.lower() }}" style="font-size:13px;padding:6px 14px;">{{ job.status }}</span>
+</div>
+
+<div class="detail-grid">
+    <!-- LEFT COLUMN -->
+    <div>
+        <!-- Job Info -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <span class="card-title">Job Information</span>
+            </div>
+            <div class="card-body">
+                <p style="font-size:14px;line-height:1.6;color:var(--text);">{{ job.description }}</p>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <label>Asset</label>
+                        <span>{{ job.asset_name or '—' }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <label>Category</label>
+                        <span>{{ job.category or '—' }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <label>Location</label>
+                        <span>{{ job.locationName or '—' }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <label>Reported On</label>
+                        <span style="font-family:var(--font-mono);font-size:12px;">{{ job.report_date }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Status -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <span class="card-title">Update Status</span>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('update_status', job_id=job.jobID) }}" class="status-form">
+                    <select name="status" style="max-width:200px;">
+                        <option value="Pending" {% if job.status == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="Ongoing" {% if job.status == 'Ongoing' %}selected{% endif %}>Ongoing</option>
+                        <option value="Done" {% if job.status == 'Done' %}selected{% endif %}>Done</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Update Status</button>
+                </form>
+                <p style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+                    Current status: <span class="badge badge-{{ job.status.lower() }}">{{ job.status }}</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Assigned Employees -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <span class="card-title">Assigned Employees</span>
+                <span style="font-size:12px;color:var(--text-muted);">{{ assigned|length }} assigned</span>
+            </div>
+            <div class="card-body">
+                {% if assigned %}
+                    {% for emp in assigned %}
+                    <div class="employee-chip">
+                        <div class="chip-avatar">{{ emp.name[0] }}</div>
+                        <div>
+                            <div class="chip-name">{{ emp.name }}</div>
+                            <div class="chip-role">{{ emp.speciality or 'General' }}</div>
+                        </div>
+                        <div class="chip-date">{{ emp.assignedDate }}</div>
+                        <form method="POST" action="{{ url_for('remove_employee', job_id=job.jobID, emp_id=emp.employeeID) }}" style="margin-left:8px;">
+                            {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
+                            <button type="submit" class="btn btn-danger btn-sm" 
+                                onclick="return confirm('Remove {{ emp.name }} from this job?')">✕</button>
+                            {% endif %}
+                            </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color:var(--text-muted);font-size:13px;">No employees assigned yet.</p>
+                {% endif %}
+
+                <hr class="section-divider">
+                <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Assign Employee</p>
+                {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
+                <form method="POST" action="{{ url_for('assign_employee', job_id=job.jobID) }}" style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <select name="employee_id" style="flex:1;min-width:180px;">
+                        <option value="" disabled selected>— Select employee —</option>
+                        {% for emp in all_employees %}
+                        <option value="{{ emp.employeeID }}" {% if emp.employeeID in assigned_ids %}disabled{% endif %}>
+                            {{ emp.name }} ({{ emp.speciality or 'General' }})
+                            {% if emp.employeeID in assigned_ids %} — Already assigned{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+        <!-- Tool Usage -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Tools & Equipment</span>
+                <span style="font-size:12px;color:var(--text-muted);">{{ tools|length }} item{{ 's' if tools|length != 1 }}</span>
+            </div>
+            <div class="card-body">
+                {% if tools %}
+                    {% for t in tools %}
+                    <div class="tool-chip">
+                        <span style="font-size:16px;">🔧</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:500;">{{ t.tool_name }}</div>
+                            <div style="font-size:11px;color:var(--text-muted);">Borrowed: {{ t.borrowDate }}</div>
+        
+                            {% if t.damage_comment %}
+                            <div style="font-size:11px; color:#e74c3c; margin-top:4px; font-style:italic;">
+                                <strong>⚠️ Damage Note:</strong> {{ t.damage_comment }}
+                            </div>
+                            {% endif %}
+                        </div>
+    
+                        <span class="tool-qty">×{{ t.quantity }}</span>
+
+                        {% if t.returnDate %}
+                            <span class="tool-returned">✓ Returned ({{ t.returnDate }})</span>
+                        {% else %}
+                            <form method="POST" action="{{ url_for('return_tool', job_id=job.jobID, usage_id=t.usageID) }}" style="display:flex; gap:8px; align-items:center;">
+                                <input type="text" name="damage_comment" placeholder="Any damages?" 
+                                    style="font-size:11px; padding:4px; border:1px solid #ddd; border-radius:4px; width:100px;">
+                                <button type="submit" class="btn btn-green btn-sm">Return</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">No tools borrowed yet.</p>
+                {% endif %}
+
+                {% if all_tools %}
+                <hr class="section-divider">
+                <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Borrow Tool</p>
+                <form method="POST" action="{{ url_for('assign_tool', job_id=job.jobID) }}">
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <select name="tool_id" required>
+                            <option value="" disabled selected>— Select tool —</option>
+                            {% for tool in all_tools %}
+                            <option value="{{ tool.toolID }}">
+                                {{ tool.tool_name }} ({{ tool.AvailableQuantity }} avail.)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <div class="form-group" style="flex:1;">
+                            <input type="number" name="quantity" min="1" value="1" placeholder="Qty">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm" style="align-self:flex-end;margin-bottom:0;">Borrow</button>
+                    </div>
+                </form>
+                {% else %}
+                <p style="color:var(--text-muted);font-size:12px;margin-top:10px;">No tools available in store.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

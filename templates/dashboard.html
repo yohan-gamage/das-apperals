@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – DAS Maintenance{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p>DAS Apparels — Maintenance Division Overview</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card total">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Jobs</div>
+    </div>
+    <div class="stat-card ongoing">
+        <div class="stat-value">{{ stats.ongoing }}</div>
+        <div class="stat-label">Ongoing</div>
+    </div>
+    <div class="stat-card pending">
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card done">
+        <div class="stat-value">{{ stats.done }}</div>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
+<div class="quick-actions">
+    <a href="{{ url_for('new_job') }}" class="action-btn">
+        <div class="action-icon">🔧</div>
+        <div>
+            <div class="action-title">Enter New Maintenance Job</div>
+            <div class="action-sub">Report a new issue and create a maintenance task</div>
+        </div>
+    </a>
+    <a href="{{ url_for('view_jobs', filter='ongoing') }}" class="action-btn">
+        <div class="action-icon">⚡</div>
+        <div>
+            <div class="action-title">View Ongoing Tasks</div>
+            <div class="action-sub">See {{ stats.ongoing }} active job{{ 's' if stats.ongoing != 1 }} in progress</div>
+        </div>
+    </a>
+    <a href="{{ url_for('view_jobs', filter='pending') }}" class="action-btn">
+        <div class="action-icon">🕐</div>
+        <div>
+            <div class="action-title">Pending Tasks</div>
+            <div class="action-sub">{{ stats.pending }} job{{ 's' if stats.pending != 1 }} awaiting assignment</div>
+        </div>
+    </a>
+    <a href="{{ url_for('view_jobs', filter='done') }}" class="action-btn">
+        <div class="action-icon">✅</div>
+        <div>
+            <div class="action-title">Completed Tasks</div>
+            <div class="action-sub">{{ stats.done }} job{{ 's' if stats.done != 1 }} successfully resolved</div>
+        </div>
+    </a>
+    <a href="{{ url_for('view_jobs', filter='all') }}" class="action-btn">
+        <div class="action-icon">📋</div>
+        <div>
+            <div class="action-title">All Jobs</div>
+            <div class="action-sub">Browse and manage all maintenance jobs</div>
+        </div>
+    </a>
+    <a href="{{ url_for('reports') }}" class="action-btn">
+        <div class="action-icon">📊</div>
+        <div>
+            <div class="action-title">View Reports</div>
+            <div class="action-sub">Analytics on jobs, employees and tools</div>
+        </div>
+    </a>
+</div>
+{% endblock %}

@@ -1,1 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DAS Maintenance{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% if session.employee_id %}
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">⚙</div>
+            <div>
+                <div class="brand-name">DAS Apparels</div>
+                <div class="brand-sub">Maintenance Division</div>
+            </div>
+        </div>
+        <div class="nav-user">
+            <div class="user-avatar">{{ session.employee_name[0] }}</div>
+            <div>
+                <div class="user-name">{{ session.employee_name }}</div>
+                <div class="user-role">{{ session.username }}</div>
+            </div>
+        </div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <span class="nav-icon">▣</span> Dashboard
+            </a></li>
+            {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
+            <li>
+                <a href="{{ url_for('new_job') }}" class="nav-link {% if request.endpoint == 'new_job' %}active{% endif %}">
+                <span class="nav-icon">＋</span> New Job
+                </a>
+            </li>
+            {% endif %}
+            <li class="nav-section">View Jobs</li>
+            <li><a href="{{ url_for('view_jobs', filter='all') }}" class="nav-link {% if request.endpoint == 'view_jobs' and request.args.get('filter','all') == 'all' %}active{% endif %}">
+                <span class="nav-icon">◈</span> All Jobs
+            </a></li>
+            <li><a href="{{ url_for('view_jobs', filter='ongoing') }}" class="nav-link {% if request.endpoint == 'view_jobs' and request.args.get('filter') == 'ongoing' %}active{% endif %}">
+                <span class="nav-icon status-dot ongoing"></span> Ongoing
+            </a></li>
+            <li><a href="{{ url_for('view_jobs', filter='pending') }}" class="nav-link {% if request.endpoint == 'view_jobs' and request.args.get('filter') == 'pending' %}active{% endif %}">
+                <span class="nav-icon status-dot pending"></span> Pending
+            </a></li>
+            <li><a href="{{ url_for('view_jobs', filter='done') }}" class="nav-link {% if request.endpoint == 'view_jobs' and request.args.get('filter') == 'done' %}active{% endif %}">
+                <span class="nav-icon status-dot done"></span> Completed
+            </a></li>
+            <li class="nav-section">Analytics</li>
+            <li><a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}">
+                <span class="nav-icon">▦</span> Reports
+            </a></li>
+            {% if session.speciality == 'Management' or session.speciality == 'Admin' %}
+            <li>
+                <a href="{{ url_for('inventory') }}" class="nav-link {% if request.endpoint == 'inventory' %}active{% endif %}">
+                    <span class="nav-icon">📦</span> Inventory Management
+                </a>
+            </li>
+            {% endif %}
+            <li class="nav-item">
+                <a href="{{ url_for('view_requests') }}" class="nav-link {% if request.endpoint == 'view_requests' %}active{% endif %}">
+                    <span class="nav-icon">📢</span> Requests
+                </a>
+            </li>
+        </ul>
+        <a href="{{ url_for('logout') }}" class="logout-btn">⏻ Sign Out</a>
+    </nav>
+    {% endif %}
 
+    <main class="main-content {% if not session.employee_id %}full-width{% endif %}">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">
+                {% if category == 'success' %}✓{% elif category == 'error' %}✗{% elif category == 'warning' %}⚠{% else %}ℹ{% endif %}
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

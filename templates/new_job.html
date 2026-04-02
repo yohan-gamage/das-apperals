@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}New Job – DAS Maintenance{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>New Maintenance Job</h1>
+    <p>Report a new issue and create a maintenance task</p>
+</div>
+
+<div style="max-width: 680px;">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Job Details</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('new_job') }}">
+                <div class="form-grid">
+                    <div class="form-group span-2">
+                        <label for="description">Issue Description *</label>
+                        <textarea id="description" name="description" 
+                            placeholder="Describe the maintenance issue in detail..." 
+                            required style="min-height:100px;"></textarea>
+                    </div>
+                    <div class="form-group span-2">
+                        <label for="asset_id">Affected Asset *</label>
+                        <select name="asset_id" required class="form-control">
+                            {% if assets %}
+                                <option value="" disabled selected>-- Select Reported Asset --</option>
+                                {% for asset in assets %}
+                                    <option value="{{ asset.assetID }}">
+                                        #{{ "%04d" % asset.assetID }} — {{ asset.name }} (Location: {{ asset.location_name }})
+                                    </option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="" disabled selected>No pending machine reports found</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:22px; display:flex; gap:10px;">
+                    <button type="submit" class="btn btn-primary">
+                        ＋ Create Job
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <div class="card-header">
+            <span class="card-title">ℹ What happens next?</span>
+        </div>
+        <div class="card-body" style="color:var(--text-muted);font-size:13px;line-height:1.7;">
+            <p>1. The job is created with <strong style="color:var(--yellow);">Pending</strong> status.</p>
+            <p>2. You can then assign one or more employees to the job.</p>
+            <p>3. Status automatically changes to <strong style="color:var(--blue);">Ongoing</strong> when an employee is assigned.</p>
+            <p>4. Employees can borrow tools from the store for their work.</p>
+            <p>5. Mark the job as <strong style="color:var(--green);">Done</strong> once completed.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

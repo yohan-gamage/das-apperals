@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Register – DAS Maintenance{% endblock %}
+{% block content %}
+<div class="login-container">
+    <div class="login-bg"></div>
+    <div class="login-card" style="width:420px;">
+        <div class="login-logo">
+            <span class="gear">⚙</span>
+            <h1>DAS Apparels</h1>
+            <p>Create New Account</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}" style="margin-bottom:16px;">
+                {% if category == 'error' %}✗{% elif category == 'success' %}✓{% endif %}
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- OTP send form (separate small form at top) -->
+<form method="POST" action="{{ url_for('send_otp') }}" style="margin-bottom:20px;">
+    <div class="form-group" style="margin-bottom:10px;">
+        <label>Email Address</label>
+        <input type="email" name="email" placeholder="your@email.com" required
+               value="{{ session.get('otp_email', '') }}">
+    </div>
+    <button type="submit" class="btn" style="width:100%;justify-content:center;
+            padding:10px;background:var(--bg2);border:1px solid var(--b);">
+        Send OTP to Email
+    </button>
+</form>
+
+<!-- Main registration form -->
+<form method="POST" action="{{ url_for('register') }}">
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Employee ID</label>
+        <input type="text" name="employee_id" placeholder="Enter your EmployeeID" required>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Full Name</label>
+        <input type="text" name="name" placeholder="Enter your full name" required>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Email Address</label>
+        <input type="email" name="email" placeholder="Must match OTP email" required>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Speciality</label>
+        <select name="speciality" required>
+            <option value="" disabled selected>— Select speciality —</option>
+            <option value="Electrical">Electrical</option>
+            <option value="Plumbing">Plumbing</option>
+            <option value="Mechanical">Mechanical</option>
+            <option value="HVAC">HVAC</option>
+            <option value="General">General</option>
+            <option value="Management">Management</option>
+            <option value="Maintenance">Maintenance Supervisor</option>
+        </select>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Choose a username" required>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Choose a password" required
+               oninput="checkMatch()">
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+        <label>Confirm Password</label>
+        <input type="password" name="confirm" placeholder="Repeat your password" required
+               oninput="checkMatch()">
+        <small id="pw-msg" style="font-size:12px;margin-top:4px;display:block;"></small>
+    </div>
+    <div class="form-group" style="margin-bottom:24px;">
+        <label>OTP Code</label>
+        <input type="text" name="otp" placeholder="Enter 6-digit OTP from email"
+               maxlength="6" required>
+    </div>
+    <button type="submit" class="btn btn-primary"
+            style="width:100%;justify-content:center;padding:12px;">
+        Create Account →
+    </button>
+</form>
+
+<script>
+function checkMatch() {
+    const pw  = document.querySelector('[name="password"]').value;
+    const cf  = document.querySelector('[name="confirm"]').value;
+    const msg = document.getElementById('pw-msg');
+    if (!cf) { msg.textContent = ''; return; }
+    if (pw === cf) {
+        msg.textContent = '✓ Passwords match';
+        msg.style.color = 'var(--color-text-success, green)';
+    } else {
+        msg.textContent = '✗ Passwords do not match';
+        msg.style.color = 'var(--color-text-danger, red)';
+    }
+}
+</script>
+
+        <div style="text-align:center;margin-top:20px;font-size:13px;color:var(--text-muted);">
+            Already have an account?
+            <a href="{{ url_for('login') }}" style="color:var(--accent);text-decoration:none;">Sign in here</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

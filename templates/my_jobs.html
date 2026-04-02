@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}My Assigned Jobs – DAS{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 style="display: flex; align-items: center; gap: 15px;">💼 My Assigned Tasks</h1>
+    <p style="color: var(--text-muted);">List of maintenance jobs assigned specifically to you</p>
+</div>
+
+<div class="card" style="margin-top: 20px; border: 1px solid var(--bg3); padding: 0;">
+    <div class="card-body" style="padding: 0;">
+        <table class="table" style="width: 100%; border-collapse: collapse; color: var(--text);">
+            <thead>
+                <tr style="text-align: left; background: var(--bg2); border-bottom: 2px solid var(--bg3);">
+                    <th style="padding: 15px;">ID</th>
+                    <th style="padding: 15px;">Asset ID</th>
+                    <th style="padding: 15px;">Asset Name</th>
+                    <th style="padding: 15px;">Description</th>
+                    <th style="padding: 15px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if jobs %}
+                    {% for job in jobs %}
+                    <tr style="border-bottom: 1px solid var(--bg3); cursor: pointer; transition: 0.2s;" 
+                        onclick="window.location.href='/jobs/{{ job.jobID }}'"
+                        onmouseover="this.style.backgroundColor='var(--bg3)'" 
+                        onmouseout="this.style.backgroundColor='transparent'">
+                        
+                        <td style="padding: 15px; font-family: monospace; color: #f1c40f;">#{{ "%04d" % job.jobID }}</td>
+                        <td style="padding: 15px;">{{ job.assetID }}</td>
+                        <td style="padding: 15px; font-weight: 600;">{{ job.asset_name }}</td>
+                        <td style="padding: 15px; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted);">
+                            {{ job.description }}
+                        </td>
+                        <td style="padding: 15px;">
+                            {% if job.status == 'Ongoing' %}
+                                <span style="background: #3498db22; color: #3498db; padding: 5px 10px; border-radius: 4px; font-size: 12px; border: 1px solid #3498db44;">
+                                    🔵 Ongoing
+                                </span>
+                            {% elif job.status == 'Pending' %}
+                                <span style="background: #f1c40f22; color: #f1c40f; padding: 5px 10px; border-radius: 4px; font-size: 12px; border: 1px solid #f1c40f44;">
+                                    🟡 Pending
+                                </span>
+                            {% else %}
+                                <span style="background: #2ecc7122; color: #2ecc71; padding: 5px 10px; border-radius: 4px; font-size: 12px; border: 1px solid #2ecc7144;">
+                                    🟢 Done
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">
+                            No jobs currently assigned to you.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

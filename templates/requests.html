@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Anonymous Requests – DAS{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📢 Machine Repair Requests</h1>
+    <p style="color:var(--text-muted);">View all issues reported by floor workers</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table" style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr style="text-align:left; border-bottom:2px solid var(--bg3);">
+                    <th style="padding:12px;">ID</th>
+                    <th style="padding:12px;">Asset Name</th>
+                    <th style="padding:12px;">Location</th>
+                    <th style="padding:12px;">Date Reported</th>
+                    <th style="padding:12px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in requests %}
+                <tr style="border-bottom:1px solid var(--bg3);">
+                    <td style="padding:12px;">#{{ "%04d" % r.reportID }}</td>
+                    <td style="padding:12px; font-weight:600;">{{ r.asset_name }}</td>
+                    <td style="padding:12px;">{{ r.location_name }}</td>
+                    <td style="padding:12px;">{{ r.reportDate }}</td>
+                    <td style="padding:12px;">
+                        {% if r.status == 'Pending' %}
+                            <span style="background:#f1c40f22; color:#f1c40f; padding:4px 8px; border-radius:4px; font-size:12px;">🟡 Pending</span>
+                        {% else %}
+                            <span style="background:#3498db22; color:#3498db; padding:4px 8px; border-radius:4px; font-size:12px;">🔵 Request Reviewed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

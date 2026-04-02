@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Jobs – DAS Maintenance{% endblock %}
+{% block content %}
+<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+    <div>
+        <h1>
+            {% if filter_type == 'ongoing' %}Ongoing Tasks
+            {% elif filter_type == 'pending' %}Pending Tasks
+            {% elif filter_type == 'done' %}Completed Tasks
+            {% else %}All Maintenance Jobs
+            {% endif %}
+        </h1>
+        <p>{{ jobs|length }} job{{ 's' if jobs|length != 1 }} found</p>
+    </div>
+    {% if session.speciality == 'Maintenance' %}
+        <a href="{{ url_for('new_job') }}" class="btn btn-primary">＋ New Job</a>
+    {% endif %}
+    </div>
+
+<div class="filter-tabs">
+    <a href="{{ url_for('view_jobs', filter='all') }}" class="filter-tab {% if filter_type == 'all' %}active-all{% endif %}">
+        All
+    </a>
+    <a href="{{ url_for('view_jobs', filter='ongoing') }}" class="filter-tab {% if filter_type == 'ongoing' %}active-ongoing{% endif %}">
+        ● Ongoing
+    </a>
+    <a href="{{ url_for('view_jobs', filter='pending') }}" class="filter-tab {% if filter_type == 'pending' %}active-pending{% endif %}">
+        ● Pending
+    </a>
+    <a href="{{ url_for('view_jobs', filter='done') }}" class="filter-tab {% if filter_type == 'done' %}active-done{% endif %}">
+        ● Done
+    </a>
+</div>
+
+{% if jobs %}
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Job ID</th>
+                <th>Description</th>
+                <th>Asset</th>
+                <th>Location</th>
+                <th>Reported</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td><span class="job-id">#{{ '%04d' % job.jobID }}</span></td>
+                <td style="max-width:260px;">
+                    <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;" title="{{ job.description }}">
+                        {{ job.description }}
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight:500;">{{ job.asset_name or '—' }}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">{{ job.category or '' }}</div>
+                </td>
+                <td style="font-size:12px;color:var(--text-muted);">{{ job.locationName or '—' }}</td>
+                <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);">{{ job.report_date }}</td>
+                <td>
+                    <span class="badge badge-{{ job.status.lower() }}">{{ job.status }}</span>
+                </td>
+                <td>
+                    <a href="{{ url_for('job_detail', job_id=job.jobID) }}" class="btn btn-outline btn-sm">
+                        View →
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="icon">📭</div>
+    <h3>No jobs found</h3>
+    <p>There are no {{ filter_type if filter_type != 'all' else '' }} maintenance jobs yet.</p>
+    <a href="{{ url_for('new_job') }}" class="btn btn-primary" style="margin-top:16px;">＋ Create First Job</a>
+</div>
+{% endif %}
+{% endblock %}

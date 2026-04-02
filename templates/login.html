@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Login – DAS Maintenance{% endblock %}
+{% block content %}
+
+<div style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
+    <a href="{{ url_for('report_issue') }}" class="btn" 
+       style="display: flex; align-items: center; gap: 10px; padding: 12px 20px; 
+              background: rgba(231, 76, 60, 0.1); border: 1px solid #e74c3c; 
+              color: #e74c3c; border-radius: 8px; text-decoration: none; 
+              font-weight: 600; backdrop-filter: blur(5px); transition: 0.3s;">
+        <span style="font-size: 20px;">⚠️</span>
+        <span>Quick Machine Report</span>
+    </a>
+</div>
+
+<div class="login-container">
+    <div class="login-bg"></div>
+    <div class="login-card">
+        <div class="login-logo">
+            <span class="gear">⚙</span>
+            <h1>DAS Apparels</h1>
+            <p>Maintenance Management System</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}" style="margin-bottom:16px;">
+                {% if category == 'error' %}✗{% elif category == 'success' %}✓{% endif %}
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group" style="margin-bottom:16px;">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" 
+                    placeholder="Enter your username" required autofocus>
+            </div>
+            <div class="form-group" style="margin-bottom:24px;">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" 
+                    placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" 
+                style="width:100%;justify-content:center;padding:12px;">
+                Sign In →
+            </button>
+        </form>
+
+        <!-- Register button -->
+        <div style="text-align:center;margin-top:14px;">
+            <a href="{{ url_for('register') }}" class="btn btn-outline" 
+                style="width:100%;justify-content:center;padding:12px;">
+                Create New Account
+            </a>
+        </div>
+
+        <!-- Demo accounts -->
+        <div class="login-demo" style="margin-top:20px;">
+            <strong style="color:var(--text);">Demo accounts:</strong>
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span><code>superadmin</code> / <code>admin789</code></span>
+                    <button onclick="fillLogin('superadmin','admin789')" 
+                        class="btn btn-outline btn-sm">Use</button>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span><code>maintenance</code> / <code>1234</code></span>
+                    <button onclick="fillLogin('maintenance','1234')" 
+                        class="btn btn-outline btn-sm">Use</button>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span><code>management</code> / <code>1234</code></span>
+                    <button onclick="fillLogin('management','1234')" 
+                        class="btn btn-outline btn-sm">Use</button>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span><code>employee</code> / <code>1234</code></span>
+                    <button onclick="fillLogin('employee','1234')" 
+                        class="btn btn-outline btn-sm">Use</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fillLogin(username, password) {
+    document.getElementById('username').value = username;
+    document.getElementById('password').value = password;
+}
+</script>
+{% endblock %}

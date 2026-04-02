@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Inventory Management – DAS Maintenance{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Inventory Management</h1>
+    <p>Add new assets and maintenance tools to the system</p>
+</div>
+
+<div class="reports-grid">
+    <div class="card">
+        <div class="card-header"><span class="card-title">＋ Add New Asset</span></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_asset') }}">
+                <div class="form-group">
+                    <label>Asset Name</label>
+                    <input type="text" name="name" placeholder="e.g., Juki Sewing Machine" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" required>
+                        <option value="Sewing">Sewing</option>
+                        <option value="Cutting">Cutting</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Building">Building</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select name="location_id" required>
+                        {% for loc in locations %}
+                        <option value="{{ loc.locationID }}">{{ loc.locationName }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Add Asset</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">＋ Add New Tool</span></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_tool') }}">
+                <div class="form-group">
+                    <label>Tool Name</label>
+                    <input type="text" name="tool_name" placeholder="e.g., Multimeter" required>
+                </div>
+                <div class="form-group">
+                    <label>Initial Quantity</label>
+                    <input type="number" name="quantity" min="1" value="1" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Add Tool</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
