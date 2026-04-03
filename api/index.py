@@ -4,17 +4,15 @@ from datetime import datetime
 import os
 import random, time
 from flask_mail import Mail, Message
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'das_apparels_maintenance_secret_2024')
 app.config['SESSION_PERMANENT'] = False
 
-from functools import wraps
-
 def manager_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Allow if user is 'Management' OR 'Admin'
         role = session.get('speciality')
         if role not in ['Management', 'Admin']:
             flash('Access denied. Admin or Management required.', 'error')
@@ -25,7 +23,6 @@ def manager_only(f):
 def maintenance_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Allow if user is 'Maintenance' OR 'Admin'
         role = session.get('speciality')
         if role not in ['Maintenance', 'Admin']:
             flash('Access Denied. Admin or Maintenance Specialist required.', 'error')
@@ -37,20 +34,14 @@ def maintenance_only(f):
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-# Use Environment Variables on Render; default to your local values for now
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USER', 'dasapparealsmaintenance@gmail.com')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASS', 'jbco quxl nzln rzok') 
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USER', 'dasapparealsmaintenance@gmail.com')
 mail = Mail(app)
 
 def get_db():
-    # Render/Aiven will provide a connection string. 
-    # If it exists, we parse it. If not, we use your local WAMP.
     db_url = os.environ.get('DATABASE_URL')
-    
     if db_url:
-        # Parsing standard connection string: mysql://user:pass@host:port/dbname
-        # This part ensures mysql.connector can read the cloud DB
         import urllib.parse as urlparse
         url = urlparse.urlparse(db_url)
         return mysql.connector.connect(
@@ -61,7 +52,6 @@ def get_db():
             database=url.path[1:]
         )
     else:
-        # Your original WAMP Local Connection
         return mysql.connector.connect(
             host="localhost",
             user="root",
@@ -69,28 +59,18 @@ def get_db():
             database="das_apparels"
         )
 
-# ... (All your decorators and routes remain exactly the same) ...
-
-if __name__ == '__main__':
-    # Use the port assigned by Render, or default to 5000 for local testing
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
-
-
-# ─── GLOBAL CONTEXT PROCESSOR (NEW) ───────────────────────────────────────
+# ─── GLOBAL CONTEXT PROCESSOR ───────────────────────────────────────
 @app.context_processor
 def inject_ongoing_count():
-    # This function makes 'pending_count' available to EVERY .html file automatically
     if 'employee_id' in session:
         try:
             conn = get_db()
             cursor = conn.cursor(dictionary=True)
-            # Count only PENDING jobs specifically assigned to this user
             cursor.execute("""
                 SELECT COUNT(*) as count 
-                FROM JobAssignment ja
-                JOIN MaintenanceJob j ON ja.jobID = j.jobID
-                WHERE ja.employeeID = %s AND j.status = 'Ongoing'
+                FROM jobassignment ja
+                JOIN maintenancejob j ON ja.jobid = j.jobid
+                WHERE ja.employeeid = %s AND j.status = 'Ongoing'
             """, (session['employee_id'],))
             result = cursor.fetchone()
             cursor.close()
@@ -111,13 +91,13 @@ def login():
         password = request.form['password']
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM Employee WHERE username=%s", (username,))
+        cursor.execute("SELECT * FROM employee WHERE username=%s", (username,))
         emp = cursor.fetchone()
         cursor.close()
         conn.close()
-        if emp and password == emp['passwordHash']:
+        if emp and password == emp['passwordhash']:
             session.permanent = False
-            session['employee_id'] = emp['employeeID']
+            session['employee_id'] = emp['employeeid']
             session['employee_name'] = emp['name']
             session['username'] = emp['username']
             session['speciality'] = emp['speciality']
@@ -135,7 +115,7 @@ def send_otp():
     otp = str(random.randint(100000, 999999))
     session['otp'] = otp
     session['otp_email'] = email
-    session['otp_expiry'] = time.time() + 300  # 5 minutes
+    session['otp_expiry'] = time.time() + 300 
 
     msg = Message('Your DAS Apparels OTP', recipients=[email])
     msg.body = f'Your one-time password is: {otp}\n\nThis code expires in 5 minutes.'
@@ -144,7 +124,6 @@ def send_otp():
         flash('OTP sent to your email. Check your inbox.', 'success')
     except Exception as e:
         flash('Failed to send OTP. Check email configuration.', 'error')
-
     return redirect(url_for('register'))
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -159,12 +138,10 @@ def register():
         confirm     = request.form['confirm']
         otp_entered = request.form.get('otp', '').strip()
 
-        # ── Two-step password check ──────────────────────────
         if password != confirm:
             flash('Passwords do not match', 'error')
             return render_template('register.html')
 
-        # ── OTP verification ─────────────────────────────────
         stored_otp    = session.get('otp')
         stored_email  = session.get('otp_email')
         otp_expiry    = session.get('otp_expiry', 0)
@@ -180,30 +157,27 @@ def register():
             flash('Invalid OTP or email mismatch', 'error')
             return render_template('register.html')
 
-        # ── Clear OTP from session ───────────────────────────
         session.pop('otp', None)
         session.pop('otp_email', None)
         session.pop('otp_expiry', None)
 
-        # ── DB checks ────────────────────────────────────────
         conn   = get_db()
         cursor = conn.cursor(dictionary=True)
 
-        cursor.execute("SELECT * FROM Employee WHERE employeeID=%s", (employee_id,))
+        cursor.execute("SELECT * FROM employee WHERE employeeid=%s", (employee_id,))
         if cursor.fetchone():
             flash('Employee ID already registered', 'error')
             cursor.close(); conn.close()
             return render_template('register.html')
 
-        cursor.execute("SELECT * FROM Employee WHERE username=%s", (username,))
+        cursor.execute("SELECT * FROM employee WHERE username=%s", (username,))
         if cursor.fetchone():
             flash('Username already taken, choose another', 'error')
             cursor.close(); conn.close()
             return render_template('register.html')
 
-        # ── Insert ───────────────────────────────────────────
         cursor.execute(
-            "INSERT INTO Employee (employeeID, name, speciality, username, passwordHash, salt) "
+            "INSERT INTO employee (employeeid, name, speciality, username, passwordhash, salt) "
             "VALUES (%s,%s,%s,%s,%s,%s)",
             (employee_id, name, speciality, username, password, '')
         )
@@ -220,7 +194,6 @@ def logout():
     return redirect(url_for('login'))
 
 def login_required(f):
-    from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'employee_id' not in session:
@@ -235,24 +208,23 @@ def login_required(f):
 def dashboard():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT COUNT(*) as cnt FROM MaintenanceJob WHERE status='Pending'")
+    cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Pending'")
     pending = cursor.fetchone()['cnt']
-    cursor.execute("SELECT COUNT(*) as cnt FROM MaintenanceJob WHERE status='Ongoing'")
+    cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Ongoing'")
     ongoing = cursor.fetchone()['cnt']
-    cursor.execute("SELECT COUNT(*) as cnt FROM MaintenanceJob WHERE status='Done'")
+    cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Done'")
     done = cursor.fetchone()['cnt']
-    cursor.execute("SELECT COUNT(*) as cnt FROM MaintenanceJob")
+    cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob")
     total = cursor.fetchone()['cnt']
     cursor.close()
     conn.close()
     stats = {'pending': pending, 'ongoing': ongoing, 'done': done, 'total': total}
     return render_template('dashboard.html', stats=stats)
 
-# ─── ANONYMOUS REPORTING (NEW) ──────────────────────────────────────────────
+# ─── ANONYMOUS REPORTING ──────────────────────────────────────────────
 
 @app.route('/report_issue', methods=['GET', 'POST'])
 def report_issue():
-    # Note: No @login_required here so anyone can access it
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
@@ -263,7 +235,7 @@ def report_issue():
         today = datetime.now().strftime('%Y-%m-%d')
         
         cursor.execute(
-            "INSERT INTO report (AssetID, description, mobileNumber, status, reportDate) VALUES (%s, %s, %s, %s, %s)",
+            "INSERT INTO report (assetid, description, mobilenumber, status, reportdate) VALUES (%s, %s, %s, %s, %s)",
             (asset_id, description, mobile, 'Pending', today)
         )
         conn.commit()
@@ -272,8 +244,7 @@ def report_issue():
         flash('Issue reported successfully! Maintenance will check it soon.', 'success')
         return redirect(url_for('login'))
 
-    # Fetch assets for the dropdown menu
-    cursor.execute("SELECT assetID, name FROM Asset")
+    cursor.execute("SELECT assetid, name FROM asset")
     assets = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -287,35 +258,30 @@ def my_profile():
     emp_id = session.get('employee_id')
 
     if request.method == 'POST':
-        # Get data from the profile form
         new_name = request.form.get('name')
         new_username = request.form.get('username')
         new_password = request.form.get('password')
 
-        # Update the database
-        if new_password: # Only update password if they typed a new one
+        if new_password:
             cursor.execute(
-                "UPDATE Employee SET name=%s, username=%s, passwordHash=%s WHERE employeeID=%s",
+                "UPDATE employee SET name=%s, username=%s, passwordhash=%s WHERE employeeid=%s",
                 (new_name, new_username, new_password, emp_id)
             )
         else:
             cursor.execute(
-                "UPDATE Employee SET name=%s, username=%s WHERE employeeID=%s",
+                "UPDATE employee SET name=%s, username=%s WHERE employeeid=%s",
                 (new_name, new_username, emp_id)
             )
         
         conn.commit()
-        # Update the session so the sidebar name changes immediately
         session['employee_name'] = new_name
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('my_profile'))
 
-    # GET request: Show the current user data
-    cursor.execute("SELECT * FROM Employee WHERE employeeID = %s", (emp_id,))
+    cursor.execute("SELECT * FROM employee WHERE employeeid = %s", (emp_id,))
     user_data = cursor.fetchone()
     cursor.close()
     conn.close()
-    
     return render_template('profile.html', user=user_data)
 
 @app.route('/my-jobs')
@@ -325,22 +291,18 @@ def my_jobs():
     cursor = conn.cursor(dictionary=True)
     emp_id = session.get('employee_id')
 
-    # This query finds jobs where THIS employee is specifically assigned
-    # It joins the JobAssignment junction table with the MaintenanceJob table
     cursor.execute("""
-        SELECT j.jobID, j.assetID, j.description, j.report_date, j.status, a.name AS asset_name
-        FROM MaintenanceJob j
-        JOIN JobAssignment ja ON j.jobID = ja.jobID
-        JOIN Asset a ON j.assetID = a.assetID
-        WHERE ja.employeeID = %s
+        SELECT j.jobid, j.assetid, j.description, j.report_date, j.status, a.name AS asset_name
+        FROM maintenancejob j
+        JOIN jobassignment ja ON j.jobid = ja.jobid
+        JOIN asset a ON j.assetid = a.assetid
+        WHERE ja.employeeid = %s
         ORDER BY j.report_date DESC
     """, (emp_id,))
     
     personal_jobs = cursor.fetchall()
     cursor.close()
     conn.close()
-    
-    # Ensure you have a 'my_jobs.html' file in your templates folder
     return render_template('my_jobs.html', jobs=personal_jobs)
 
 # ─── JOBS ────────────────────────────────────────────────────────────────────
@@ -356,12 +318,12 @@ def new_job():
         asset_id = request.form['asset_id']
         report_date = datetime.now().strftime('%Y-%m-%d')
         cursor.execute(
-            "INSERT INTO MaintenanceJob (description, report_date, status, assetID) VALUES (%s,%s,%s,%s)",
+            "INSERT INTO maintenancejob (description, report_date, status, assetid) VALUES (%s,%s,%s,%s)",
             (desc, report_date, 'Pending', asset_id)
         )
     
         cursor.execute(
-            "UPDATE report SET status = 'Request Reviewed' WHERE assetID = %s AND status = 'Pending'",
+            "UPDATE report SET status = 'Request Reviewed' WHERE assetid = %s AND status = 'Pending'",
             (asset_id,)
         )
         conn.commit()
@@ -369,11 +331,12 @@ def new_job():
         conn.close()
         flash('Maintenance job created successfully!', 'success')
         return redirect(url_for('view_jobs', filter='all'))
+        
     cursor.execute("""
-        SELECT DISTINCT a.assetID, a.name, l.locationName AS location_name 
-        FROM Asset a
-        JOIN report r ON a.assetID = r.assetID
-        JOIN Location l ON a.locationID = l.locationID
+        SELECT DISTINCT a.assetid, a.name, l.locationname AS location_name 
+        FROM asset a
+        JOIN report r ON a.assetid = r.assetid
+        JOIN location l ON a.locationid = l.locationid
         WHERE r.status = 'Pending'
         """)
     assets = cursor.fetchall()
@@ -388,10 +351,10 @@ def view_jobs():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     base_query = """
-        SELECT j.*, a.name as asset_name, a.category, l.locationName
-        FROM MaintenanceJob j
-        LEFT JOIN Asset a ON j.assetID = a.assetID
-        LEFT JOIN Location l ON a.locationID = l.locationID
+        SELECT j.*, a.name as asset_name, a.category, l.locationname
+        FROM maintenancejob j
+        LEFT JOIN asset a ON j.assetid = a.assetid
+        LEFT JOIN location l ON a.locationid = l.locationid
     """
     if filter_type == 'pending':
         cursor.execute(base_query + " WHERE j.status='Pending' ORDER BY j.report_date DESC")
@@ -412,11 +375,11 @@ def job_detail(job_id):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
-        SELECT j.*, a.name as asset_name, a.category, l.locationName
-        FROM MaintenanceJob j
-        LEFT JOIN Asset a ON j.assetID = a.assetID
-        LEFT JOIN Location l ON a.locationID = l.locationID
-        WHERE j.jobID=%s
+        SELECT j.*, a.name as asset_name, a.category, l.locationname
+        FROM maintenancejob j
+        LEFT JOIN asset a ON j.assetid = a.assetid
+        LEFT JOIN location l ON a.locationid = l.locationid
+        WHERE j.jobid=%s
     """, (job_id,))
     job = cursor.fetchone()
     if not job:
@@ -425,22 +388,22 @@ def job_detail(job_id):
         flash('Job not found', 'error')
         return redirect(url_for('view_jobs'))
     cursor.execute("""
-        SELECT e.employeeID, e.name, e.speciality, ja.assignedDate
-        FROM JobAssignment ja JOIN Employee e ON ja.employeeID = e.employeeID
-        WHERE ja.jobID=%s
+        SELECT e.employeeid, e.name, e.speciality, ja.assigneddate
+        FROM jobassignment ja JOIN employee e ON ja.employeeid = e.employeeid
+        WHERE ja.jobid=%s
     """, (job_id,))
     assigned = cursor.fetchall()
     cursor.execute("""
         SELECT tu.*, t.tool_name
-        FROM ToolUsage tu JOIN Tool t ON tu.toolID = t.toolID
-        WHERE tu.jobID=%s
+        FROM toolusage tu JOIN tool t ON tu.toolid = t.toolid
+        WHERE tu.jobid=%s
     """, (job_id,))
     tools = cursor.fetchall()
-    cursor.execute("SELECT * FROM Employee ORDER BY name")
+    cursor.execute("SELECT * FROM employee ORDER BY name")
     all_employees = cursor.fetchall()
-    cursor.execute("SELECT * FROM Tool WHERE AvailableQuantity > 0 ORDER BY tool_name")
+    cursor.execute("SELECT * FROM tool WHERE availablequantity > 0 ORDER BY tool_name")
     all_tools = cursor.fetchall()
-    assigned_ids = [e['employeeID'] for e in assigned]
+    assigned_ids = [e['employeeid'] for e in assigned]
     cursor.close()
     conn.close()
     return render_template('job_detail.html', job=job, assigned=assigned,
@@ -453,7 +416,7 @@ def update_status(job_id):
     new_status = request.form['status']
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE MaintenanceJob SET status=%s WHERE jobID=%s", (new_status, job_id))
+    cursor.execute("UPDATE maintenancejob SET status=%s WHERE jobid=%s", (new_status, job_id))
     conn.commit()
     cursor.close()
     conn.close()
@@ -468,17 +431,17 @@ def assign_employee(job_id):
     assigned_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM JobAssignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
+    cursor.execute("SELECT * FROM jobassignment WHERE jobid=%s AND employeeid=%s", (job_id, emp_id))
     existing = cursor.fetchone()
     if existing:
         flash('Employee already assigned to this job', 'warning')
     else:
         cursor.execute(
-            "INSERT INTO JobAssignment (jobID, employeeID, assignedDate) VALUES (%s,%s,%s)",
+            "INSERT INTO jobassignment (jobid, employeeid, assigneddate) VALUES (%s,%s,%s)",
             (job_id, emp_id, assigned_date)
         )
         cursor.execute(
-            "UPDATE MaintenanceJob SET status='Ongoing' WHERE jobID=%s AND status='Pending'",
+            "UPDATE maintenancejob SET status='Ongoing' WHERE jobid=%s AND status='Pending'",
             (job_id,)
         )
         conn.commit()
@@ -493,7 +456,7 @@ def assign_employee(job_id):
 def remove_employee(job_id, emp_id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM JobAssignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
+    cursor.execute("DELETE FROM jobassignment WHERE jobid=%s AND employeeid=%s", (job_id, emp_id))
     conn.commit()
     cursor.close()
     conn.close()
@@ -508,17 +471,17 @@ def assign_tool(job_id):
     borrow_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM Tool WHERE toolID=%s", (tool_id,))
+    cursor.execute("SELECT * FROM tool WHERE toolid=%s", (tool_id,))
     tool = cursor.fetchone()
-    if not tool or tool['AvailableQuantity'] < quantity:
+    if not tool or tool['availablequantity'] < quantity:
         flash('Not enough quantity available for this tool', 'error')
     else:
         cursor.execute(
-            "INSERT INTO ToolUsage (jobID, toolID, borrowDate, quantity) VALUES (%s,%s,%s,%s)",
+            "INSERT INTO toolusage (jobid, toolid, borrowdate, quantity) VALUES (%s,%s,%s,%s)",
             (job_id, tool_id, borrow_date, quantity)
         )
         cursor.execute(
-            "UPDATE Tool SET AvailableQuantity = AvailableQuantity - %s WHERE toolID=%s",
+            "UPDATE tool SET availablequantity = availablequantity - %s WHERE toolid=%s",
             (quantity, tool_id)
         )
         conn.commit()
@@ -534,16 +497,15 @@ def return_tool(job_id, usage_id):
     comment = request.form.get('damage_comment', '').strip()
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM ToolUsage WHERE usageID=%s", (usage_id,))
+    cursor.execute("SELECT * FROM toolusage WHERE usageid=%s", (usage_id,))
     usage = cursor.fetchone()
-    if usage and not usage['returnDate']:
-        cursor.execute("UPDATE ToolUsage SET returnDate=%s, damage_comment=%s WHERE usageID=%s", (return_date, comment, usage_id))
+    if usage and not usage['returndate']:
+        cursor.execute("UPDATE toolusage SET returndate=%s, damage_comment=%s WHERE usageid=%s", (return_date, comment, usage_id))
         cursor.execute(
-            "UPDATE Tool SET AvailableQuantity = AvailableQuantity + %s WHERE toolID=%s",
-            (usage['quantity'], usage['toolID'])
+            "UPDATE tool SET availablequantity = availablequantity + %s WHERE toolid=%s",
+            (usage['quantity'], usage['toolid'])
         )
         conn.commit()
-
         if comment:
             flash(f'Tool returned with damage report: "{comment}"', 'warning')
         else:
@@ -559,13 +521,9 @@ def delete_job(job_id):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # 1. First, delete child records due to Foreign Key constraints
-        cursor.execute("DELETE FROM ToolUsage WHERE jobID=%s", (job_id,))
-        cursor.execute("DELETE FROM JobAssignment WHERE jobID=%s", (job_id,))
-        
-        # 2. Now delete the actual job
-        cursor.execute("DELETE FROM MaintenanceJob WHERE jobID=%s", (job_id,))
-        
+        cursor.execute("DELETE FROM toolusage WHERE jobid=%s", (job_id,))
+        cursor.execute("DELETE FROM jobassignment WHERE jobid=%s", (job_id,))
+        cursor.execute("DELETE FROM maintenancejob WHERE jobid=%s", (job_id,))
         conn.commit()
         flash(f'Job #{job_id:04d} has been permanently deleted.', 'success')
     except Exception as e:
@@ -574,10 +532,9 @@ def delete_job(job_id):
     finally:
         cursor.close()
         conn.close()
-    
     return redirect(url_for('view_jobs'))
 
-# ─── INVENTORY MANAGEMENT (NEW SECTION) ───────────────────────────────────
+# ─── INVENTORY MANAGEMENT ───────────────────────────────────
 
 @app.route('/inventory/remove-asset', methods=['POST'])
 @login_required
@@ -587,12 +544,11 @@ def remove_asset_dropdown():
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("DELETE FROM Asset WHERE assetID = %s", (asset_id,))
+        cursor.execute("DELETE FROM asset WHERE assetid = %s", (asset_id,))
         conn.commit()
         flash('Asset removed successfully!', 'success')
     except:
         flash('Error: This asset is linked to existing job records.', 'danger')
-    
     cursor.close()
     conn.close()
     return redirect(url_for('inventory_management'))
@@ -603,22 +559,17 @@ def remove_asset_dropdown():
 def remove_tool_dropdown():
     tool_id = request.form.get('tool_id')
     qty_to_remove = int(request.form.get('quantity'))
-    
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    
-    # Check current quantity first
-    cursor.execute("SELECT availableQuantity FROM Tool WHERE toolID = %s", (tool_id,))
+    cursor.execute("SELECT availablequantity FROM tool WHERE toolid = %s", (tool_id,))
     tool = cursor.fetchone()
-    
-    if tool and tool['availableQuantity'] >= qty_to_remove:
-        new_qty = tool['availableQuantity'] - qty_to_remove
-        cursor.execute("UPDATE Tool SET availableQuantity = %s WHERE toolID = %s", (new_qty, tool_id))
+    if tool and tool['availablequantity'] >= qty_to_remove:
+        new_qty = tool['availablequantity'] - qty_to_remove
+        cursor.execute("UPDATE tool SET availablequantity = %s WHERE toolid = %s", (new_qty, tool_id))
         conn.commit()
         flash(f'Removed {qty_to_remove} items from tool stock.', 'success')
     else:
         flash('Error: Not enough stock to remove that amount.', 'warning')
-        
     cursor.close()
     conn.close()
     return redirect(url_for('inventory_management'))
@@ -628,17 +579,14 @@ def remove_tool_dropdown():
 def view_requests():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    
-    # We join with Asset and Location to get the names, not just IDs
     cursor.execute("""
-        SELECT r.reportID, a.name AS asset_name, l.locationName AS location_name, r.description, r.status, r.reportDate
+        SELECT r.reportid, a.name AS asset_name, l.locationname AS location_name, r.description, r.status, r.reportdate
         FROM report r
-        JOIN Asset a ON r.assetID = a.assetID
-        JOIN Location l ON a.locationID = l.locationID
-        ORDER BY r.reportDate DESC
+        JOIN asset a ON r.assetid = a.assetid
+        JOIN location l ON r.locationid = l.locationid
+        ORDER BY r.reportdate DESC
     """)
     all_requests = cursor.fetchall()
-    
     cursor.close()
     conn.close()
     return render_template('requests.html', requests=all_requests)
@@ -650,31 +598,31 @@ def view_requests():
 def reports():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT status, COUNT(*) as count FROM MaintenanceJob GROUP BY status")
+    cursor.execute("SELECT status, COUNT(*) as count FROM maintenancejob GROUP BY status")
     by_status = cursor.fetchall()
     cursor.execute("""
         SELECT e.name, e.speciality,
-               COUNT(ja.jobID) as total_jobs,
+               COUNT(ja.jobid) as total_jobs,
                SUM(CASE WHEN j.status='Ongoing' THEN 1 ELSE 0 END) as ongoing,
                SUM(CASE WHEN j.status='Done' THEN 1 ELSE 0 END) as done
-        FROM Employee e
-        LEFT JOIN JobAssignment ja ON e.employeeID = ja.employeeID
-        LEFT JOIN MaintenanceJob j ON ja.jobID = j.jobID
-        GROUP BY e.employeeID ORDER BY total_jobs DESC
+        FROM employee e
+        LEFT JOIN jobassignment ja ON e.employeeid = ja.employeeid
+        LEFT JOIN maintenancejob j ON ja.jobid = j.jobid
+        GROUP BY e.employeeid ORDER BY total_jobs DESC
     """)
     emp_workload = cursor.fetchall()
     cursor.execute("""
-        SELECT t.tool_name, t.AvailableQuantity,
-               COUNT(tu.usageID) as times_used,
-               SUM(CASE WHEN tu.returnDate IS NULL THEN tu.quantity ELSE 0 END) as currently_out
-        FROM Tool t
-        LEFT JOIN ToolUsage tu ON t.toolID = tu.toolID
-        GROUP BY t.toolID ORDER BY times_used DESC
+        SELECT t.tool_name, t.availablequantity,
+               COUNT(tu.usageid) as times_used,
+               SUM(CASE WHEN tu.returndate IS NULL THEN tu.quantity ELSE 0 END) as currently_out
+        FROM tool t
+        LEFT JOIN toolusage tu ON t.toolid = tu.toolid
+        GROUP BY t.toolid ORDER BY times_used DESC
     """)
     tool_report = cursor.fetchall()
     cursor.execute("""
-        SELECT a.category, COUNT(j.jobID) as job_count
-        FROM MaintenanceJob j JOIN Asset a ON j.assetID = a.assetID
+        SELECT a.category, COUNT(j.jobid) as job_count
+        FROM maintenancejob j JOIN asset a ON j.assetid = a.assetid
         GROUP BY a.category ORDER BY job_count DESC
     """)
     by_category = cursor.fetchall()
@@ -686,9 +634,7 @@ def reports():
                            tool_report=tool_report,
                            by_category=by_category)
 
-# ... (existing reports code) ...
-
-# ─── INVENTORY MANAGEMENT (NEW) ─────────────────────────────────────────────
+# ─── INVENTORY MANAGEMENT ─────────────────────────────────────────────
 
 @app.route('/inventory')
 @login_required
@@ -696,27 +642,15 @@ def reports():
 def inventory_management():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    
-    # Fetching Locations for the Add Asset dropdown
-    cursor.execute("SELECT locationID, locationName FROM Location ORDER BY locationName ASC")
+    cursor.execute("SELECT locationid, locationname FROM location ORDER BY locationname ASC")
     locations = cursor.fetchall()
-    
-    # Fetching Assets for the Remove Asset dropdown
-    cursor.execute("SELECT assetID, name FROM Asset ORDER BY name ASC")
+    cursor.execute("SELECT assetid, name FROM asset ORDER BY name ASC")
     assets = cursor.fetchall()
-    
-    # Fetching Tools for the Reduce Stock dropdown
-    cursor.execute("SELECT toolID, tool_name, availableQuantity FROM Tool ORDER BY tool_name ASC")
+    cursor.execute("SELECT toolid, tool_name, availablequantity FROM tool ORDER BY tool_name ASC")
     tools = cursor.fetchall()
-    
     cursor.close()
     conn.close()
-    
-    # CRITICAL: You must pass ALL three lists here
-    return render_template('inventory.html', 
-                           locations=locations, 
-                           assets=assets, 
-                           tools=tools)
+    return render_template('inventory.html', locations=locations, assets=assets, tools=tools)
 
 @app.route('/inventory/add_asset', methods=['POST'])
 @login_required
@@ -727,7 +661,7 @@ def add_asset():
     loc_id = request.form['location_id']
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO Asset (name, category, locationID) VALUES (%s, %s, %s)", 
+    cursor.execute("INSERT INTO asset (name, category, locationid) VALUES (%s, %s, %s)", 
                    (name, category, loc_id))
     conn.commit()
     cursor.close()
@@ -743,7 +677,7 @@ def add_tool():
     qty = request.form['quantity']
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO Tool (tool_name, AvailableQuantity) VALUES (%s, %s)", 
+    cursor.execute("INSERT INTO tool (tool_name, availablequantity) VALUES (%s, %s)", 
                    (tool_name, qty))
     conn.commit()
     cursor.close()
@@ -751,7 +685,6 @@ def add_tool():
     flash('New Tool added to store!', 'success')
     return redirect(url_for('inventory'))
 
-
-
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
