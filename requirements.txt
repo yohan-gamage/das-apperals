@@ -2,3 +2,5 @@ flask
 mysql-connector-python
 flask-mail
 gunicorn
+pymysql
+cryptography
