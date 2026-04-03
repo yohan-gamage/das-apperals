@@ -1,12 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import mysql.connector
 from datetime import datetime
-
+import os
 import random, time
 from flask_mail import Mail, Message
 
 app = Flask(__name__)
-app.secret_key = 'das_apparels_maintenance_secret_2024'
+app.secret_key = os.environ.get('SECRET_KEY', 'das_apparels_maintenance_secret_2024')
 app.config['SESSION_PERMANENT'] = False
 
 from functools import wraps
@@ -33,23 +33,72 @@ def maintenance_only(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Mail config — add these lines before app.secret_key
+# --- MAIL CONFIG ---
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'dasapparealsmaintenance@gmail.com'   # ← change
-app.config['MAIL_PASSWORD'] = 'jbco quxl nzln rzok'       # ← Gmail app password
-app.config['MAIL_DEFAULT_SENDER'] = 'dasapparealsmaintenance@gmail.com'
+# Use Environment Variables on Render; default to your local values for now
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USER', 'dasapparealsmaintenance@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASS', 'jbco quxl nzln rzok') 
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USER', 'dasapparealsmaintenance@gmail.com')
 mail = Mail(app)
 
 def get_db():
-    conn = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="1234",                # WAMP default empty password
-        database="das_apparels"  # your database name in phpMyAdmin
-    )
-    return conn
+    # Render/Aiven will provide a connection string. 
+    # If it exists, we parse it. If not, we use your local WAMP.
+    db_url = os.environ.get('DATABASE_URL')
+    
+    if db_url:
+        # Parsing standard connection string: mysql://user:pass@host:port/dbname
+        # This part ensures mysql.connector can read the cloud DB
+        import urllib.parse as urlparse
+        url = urlparse.urlparse(db_url)
+        return mysql.connector.connect(
+            host=url.hostname,
+            user=url.username,
+            password=url.password,
+            port=url.port or 3306,
+            database=url.path[1:]
+        )
+    else:
+        # Your original WAMP Local Connection
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="1234",                
+            database="das_apparels"
+        )
+
+# ... (All your decorators and routes remain exactly the same) ...
+
+if __name__ == '__main__':
+    # Use the port assigned by Render, or default to 5000 for local testing
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+
+
+# ─── GLOBAL CONTEXT PROCESSOR (NEW) ───────────────────────────────────────
+@app.context_processor
+def inject_ongoing_count():
+    # This function makes 'pending_count' available to EVERY .html file automatically
+    if 'employee_id' in session:
+        try:
+            conn = get_db()
+            cursor = conn.cursor(dictionary=True)
+            # Count only PENDING jobs specifically assigned to this user
+            cursor.execute("""
+                SELECT COUNT(*) as count 
+                FROM JobAssignment ja
+                JOIN MaintenanceJob j ON ja.jobID = j.jobID
+                WHERE ja.employeeID = %s AND j.status = 'Ongoing'
+            """, (session['employee_id'],))
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            return {'ongoing_count': result['count']}
+        except:
+            return {'ongoing_count': 0}
+    return {'ongoing_count': 0}
 
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
@@ -230,6 +279,69 @@ def report_issue():
     conn.close()
     return render_template('report_issue.html', assets=assets)
 
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def my_profile():
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    emp_id = session.get('employee_id')
+
+    if request.method == 'POST':
+        # Get data from the profile form
+        new_name = request.form.get('name')
+        new_username = request.form.get('username')
+        new_password = request.form.get('password')
+
+        # Update the database
+        if new_password: # Only update password if they typed a new one
+            cursor.execute(
+                "UPDATE Employee SET name=%s, username=%s, passwordHash=%s WHERE employeeID=%s",
+                (new_name, new_username, new_password, emp_id)
+            )
+        else:
+            cursor.execute(
+                "UPDATE Employee SET name=%s, username=%s WHERE employeeID=%s",
+                (new_name, new_username, emp_id)
+            )
+        
+        conn.commit()
+        # Update the session so the sidebar name changes immediately
+        session['employee_name'] = new_name
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('my_profile'))
+
+    # GET request: Show the current user data
+    cursor.execute("SELECT * FROM Employee WHERE employeeID = %s", (emp_id,))
+    user_data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    return render_template('profile.html', user=user_data)
+
+@app.route('/my-jobs')
+@login_required
+def my_jobs():
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    emp_id = session.get('employee_id')
+
+    # This query finds jobs where THIS employee is specifically assigned
+    # It joins the JobAssignment junction table with the MaintenanceJob table
+    cursor.execute("""
+        SELECT j.jobID, j.assetID, j.description, j.report_date, j.status, a.name AS asset_name
+        FROM MaintenanceJob j
+        JOIN JobAssignment ja ON j.jobID = ja.jobID
+        JOIN Asset a ON j.assetID = a.assetID
+        WHERE ja.employeeID = %s
+        ORDER BY j.report_date DESC
+    """, (emp_id,))
+    
+    personal_jobs = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    # Ensure you have a 'my_jobs.html' file in your templates folder
+    return render_template('my_jobs.html', jobs=personal_jobs)
 
 # ─── JOBS ────────────────────────────────────────────────────────────────────
 
@@ -465,6 +577,52 @@ def delete_job(job_id):
     
     return redirect(url_for('view_jobs'))
 
+# ─── INVENTORY MANAGEMENT (NEW SECTION) ───────────────────────────────────
+
+@app.route('/inventory/remove-asset', methods=['POST'])
+@login_required
+@manager_only
+def remove_asset_dropdown():
+    asset_id = request.form.get('asset_id')
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM Asset WHERE assetID = %s", (asset_id,))
+        conn.commit()
+        flash('Asset removed successfully!', 'success')
+    except:
+        flash('Error: This asset is linked to existing job records.', 'danger')
+    
+    cursor.close()
+    conn.close()
+    return redirect(url_for('inventory_management'))
+
+@app.route('/inventory/remove-tool', methods=['POST'])
+@login_required
+@manager_only
+def remove_tool_dropdown():
+    tool_id = request.form.get('tool_id')
+    qty_to_remove = int(request.form.get('quantity'))
+    
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Check current quantity first
+    cursor.execute("SELECT availableQuantity FROM Tool WHERE toolID = %s", (tool_id,))
+    tool = cursor.fetchone()
+    
+    if tool and tool['availableQuantity'] >= qty_to_remove:
+        new_qty = tool['availableQuantity'] - qty_to_remove
+        cursor.execute("UPDATE Tool SET availableQuantity = %s WHERE toolID = %s", (new_qty, tool_id))
+        conn.commit()
+        flash(f'Removed {qty_to_remove} items from tool stock.', 'success')
+    else:
+        flash('Error: Not enough stock to remove that amount.', 'warning')
+        
+    cursor.close()
+    conn.close()
+    return redirect(url_for('inventory_management'))
+
 @app.route('/requests')
 @login_required
 def view_requests():
@@ -473,7 +631,7 @@ def view_requests():
     
     # We join with Asset and Location to get the names, not just IDs
     cursor.execute("""
-        SELECT r.reportID, a.name AS asset_name, l.locationName AS location_name, r.status, r.reportDate
+        SELECT r.reportID, a.name AS asset_name, l.locationName AS location_name, r.description, r.status, r.reportDate
         FROM report r
         JOIN Asset a ON r.assetID = a.assetID
         JOIN Location l ON a.locationID = l.locationID
@@ -534,15 +692,31 @@ def reports():
 
 @app.route('/inventory')
 @login_required
-@manager_only # This is the restriction you asked for
-def inventory():
+@manager_only
+def inventory_management():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM Location")
+    
+    # Fetching Locations for the Add Asset dropdown
+    cursor.execute("SELECT locationID, locationName FROM Location ORDER BY locationName ASC")
     locations = cursor.fetchall()
+    
+    # Fetching Assets for the Remove Asset dropdown
+    cursor.execute("SELECT assetID, name FROM Asset ORDER BY name ASC")
+    assets = cursor.fetchall()
+    
+    # Fetching Tools for the Reduce Stock dropdown
+    cursor.execute("SELECT toolID, tool_name, availableQuantity FROM Tool ORDER BY tool_name ASC")
+    tools = cursor.fetchall()
+    
     cursor.close()
     conn.close()
-    return render_template('inventory.html', locations=locations)
+    
+    # CRITICAL: You must pass ALL three lists here
+    return render_template('inventory.html', 
+                           locations=locations, 
+                           assets=assets, 
+                           tools=tools)
 
 @app.route('/inventory/add_asset', methods=['POST'])
 @login_required
