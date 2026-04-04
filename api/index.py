@@ -8,12 +8,11 @@ from functools import wraps
 
 app = Flask(__name__)
 
-# --- CONFIGURATION (UPDATED FOR PRODUCTION/VERCEL) ---
-# Use Environment Variables for sensitive keys
+# --- CONFIGURATION ---
 app.secret_key = os.getenv('SECRET_KEY', 'das_apparels_maintenance_secret_2024')
 app.config['SESSION_PERMANENT'] = False
 
-# Mail config — Updated to use Environment Variables
+# Mail config using Environment Variables
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
@@ -43,7 +42,6 @@ def maintenance_only(f):
     return decorated_function
 
 def get_db():
-    # Updated for Cloud Hosting (Vercel cannot connect to localhost)
     conn = mysql.connector.connect(
         host=os.getenv('DB_HOST', 'localhost'),
         user=os.getenv('DB_USER', 'root'),
@@ -53,14 +51,13 @@ def get_db():
     )
     return conn
 
-# ─── GLOBAL CONTEXT PROCESSOR ───────────────────────────────────────
 @app.context_processor
 def inject_ongoing_count():
     if 'employee_id' in session:
         try:
             conn = get_db()
             cursor = conn.cursor(dictionary=True)
-            # Table names changed to lowercase to match das_apparels.sql exactly
+            # FIX: Lowercase table names
             cursor.execute("""
                 SELECT COUNT(*) as count 
                 FROM jobassignment ja
@@ -86,7 +83,7 @@ def login():
         password = request.form['password']
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        # Table 'employee' lowercase
+        # FIX: Lowercase 'employee'
         cursor.execute("SELECT * FROM employee WHERE username=%s", (username,))
         emp = cursor.fetchone()
         cursor.close()
@@ -152,7 +149,7 @@ def register():
         session.pop('otp_expiry', None)
         conn   = get_db()
         cursor = conn.cursor(dictionary=True)
-        # Table 'employee' lowercase
+        # FIX: Lowercase 'employee'
         cursor.execute("SELECT * FROM employee WHERE employeeID=%s", (employee_id,))
         if cursor.fetchone():
             flash('Employee ID already registered', 'error')
@@ -194,7 +191,7 @@ def login_required(f):
 def dashboard():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Table 'maintenancejob' lowercase
+    # FIX: Lowercase 'maintenancejob'
     cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Pending'")
     pending = cursor.fetchone()['cnt']
     cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Ongoing'")
@@ -219,7 +216,7 @@ def report_issue():
         description = request.form['description']
         mobile = request.form['mobile']
         today = datetime.now().strftime('%Y-%m-%d')
-        # Table 'report', Column 'AssetID' (case sensitive)
+        # FIX: Lowercase 'report', Note: AssetID is capitalized in SQL schema
         cursor.execute(
             "INSERT INTO report (AssetID, description, mobileNumber, status, reportDate) VALUES (%s, %s, %s, %s, %s)",
             (asset_id, description, mobile, 'Pending', today)
@@ -229,7 +226,7 @@ def report_issue():
         conn.close()
         flash('Issue reported successfully! Maintenance will check it soon.', 'success')
         return redirect(url_for('login'))
-    # Table 'asset' lowercase
+    # FIX: Lowercase 'asset' - This was the exact error from your Vercel log!
     cursor.execute("SELECT assetID, name FROM asset")
     assets = cursor.fetchall()
     cursor.close()
@@ -246,7 +243,7 @@ def my_profile():
         new_name = request.form.get('name')
         new_username = request.form.get('username')
         new_password = request.form.get('password')
-        # Table 'employee' lowercase
+        # FIX: Lowercase 'employee'
         if new_password:
             cursor.execute(
                 "UPDATE employee SET name=%s, username=%s, passwordHash=%s WHERE employeeID=%s",
@@ -273,7 +270,7 @@ def my_jobs():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     emp_id = session.get('employee_id')
-    # Table names matched to lowercase SQL schema
+    # FIX: Lowercase table names
     cursor.execute("""
         SELECT j.jobID, j.assetID, j.description, j.report_date, j.status, a.name AS asset_name
         FROM maintenancejob j
@@ -299,7 +296,7 @@ def new_job():
         desc = request.form['description']
         asset_id = request.form['asset_id']
         report_date = datetime.now().strftime('%Y-%m-%d')
-        # Table 'maintenancejob' and 'report' lowercase
+        # FIX: Lowercase table names
         cursor.execute(
             "INSERT INTO maintenancejob (description, report_date, status, assetID) VALUES (%s,%s,%s,%s)",
             (desc, report_date, 'Pending', asset_id)
@@ -331,7 +328,7 @@ def view_jobs():
     filter_type = request.args.get('filter', 'all')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Corrected table names to lowercase
+    # FIX: Lowercase table names
     base_query = """
         SELECT j.*, a.name as asset_name, a.category, l.locationName
         FROM maintenancejob j
@@ -356,7 +353,7 @@ def view_jobs():
 def job_detail(job_id):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Corrected table names to lowercase
+    # FIX: Lowercase table names
     cursor.execute("""
         SELECT j.*, a.name as asset_name, a.category, l.locationName
         FROM maintenancejob j
@@ -399,6 +396,7 @@ def update_status(job_id):
     new_status = request.form['status']
     conn = get_db()
     cursor = conn.cursor()
+    # FIX: Lowercase table name
     cursor.execute("UPDATE maintenancejob SET status=%s WHERE jobID=%s", (new_status, job_id))
     conn.commit()
     cursor.close()
@@ -414,6 +412,7 @@ def assign_employee(job_id):
     assigned_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
+    # FIX: Lowercase table name
     cursor.execute("SELECT * FROM jobassignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
     existing = cursor.fetchone()
     if existing:
@@ -439,6 +438,7 @@ def assign_employee(job_id):
 def remove_employee(job_id, emp_id):
     conn = get_db()
     cursor = conn.cursor()
+    # FIX: Lowercase table name
     cursor.execute("DELETE FROM jobassignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
     conn.commit()
     cursor.close()
@@ -454,6 +454,7 @@ def assign_tool(job_id):
     borrow_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
+    # FIX: Lowercase 'tool'
     cursor.execute("SELECT * FROM tool WHERE toolID=%s", (tool_id,))
     tool = cursor.fetchone()
     if not tool or tool['AvailableQuantity'] < quantity:
@@ -480,6 +481,7 @@ def return_tool(job_id, usage_id):
     comment = request.form.get('damage_comment', '').strip()
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
+    # FIX: Lowercase table names
     cursor.execute("SELECT * FROM toolusage WHERE usageID=%s", (usage_id,))
     usage = cursor.fetchone()
     if usage and not usage['returnDate']:
@@ -504,7 +506,7 @@ def delete_job(job_id):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # Table names corrected to lowercase
+        # FIX: Lowercase table names
         cursor.execute("DELETE FROM toolusage WHERE jobID=%s", (job_id,))
         cursor.execute("DELETE FROM jobassignment WHERE jobID=%s", (job_id,))
         cursor.execute("DELETE FROM maintenancejob WHERE jobID=%s", (job_id,))
@@ -528,7 +530,7 @@ def remove_asset_dropdown():
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # Table 'asset' lowercase
+        # FIX: Lowercase 'asset'
         cursor.execute("DELETE FROM asset WHERE assetID = %s", (asset_id,))
         conn.commit()
         flash('Asset removed successfully!', 'success')
@@ -546,7 +548,7 @@ def remove_tool_dropdown():
     qty_to_remove = int(request.form.get('quantity'))
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Table 'tool' lowercase
+    # FIX: Lowercase 'tool'
     cursor.execute("SELECT AvailableQuantity FROM tool WHERE toolID = %s", (tool_id,))
     tool = cursor.fetchone()
     if tool and tool['AvailableQuantity'] >= qty_to_remove:
@@ -565,7 +567,7 @@ def remove_tool_dropdown():
 def view_requests():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Table names matched to lowercase
+    # FIX: Lowercase table names
     cursor.execute("""
         SELECT r.reportID, a.name AS asset_name, l.locationName AS location_name, r.description, r.status, r.reportDate
         FROM report r
@@ -585,7 +587,7 @@ def view_requests():
 def reports():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Table names matched to lowercase
+    # FIX: Lowercase table names
     cursor.execute("SELECT status, COUNT(*) as count FROM maintenancejob GROUP BY status")
     by_status = cursor.fetchall()
     cursor.execute("""
@@ -630,7 +632,7 @@ def reports():
 def inventory_management():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # Table names matched to lowercase
+    # FIX: Lowercase table names
     cursor.execute("SELECT locationID, locationName FROM location ORDER BY locationName ASC")
     locations = cursor.fetchall()
     cursor.execute("SELECT assetID, name FROM asset ORDER BY name ASC")
@@ -650,7 +652,7 @@ def add_asset():
     loc_id = request.form['location_id']
     conn = get_db()
     cursor = conn.cursor()
-    # Table 'asset' lowercase
+    # FIX: Lowercase 'asset'
     cursor.execute("INSERT INTO asset (name, category, locationID) VALUES (%s, %s, %s)", 
                    (name, category, loc_id))
     conn.commit()
@@ -667,7 +669,7 @@ def add_tool():
     qty = request.form['quantity']
     conn = get_db()
     cursor = conn.cursor()
-    # Table 'tool' lowercase
+    # FIX: Lowercase 'tool'
     cursor.execute("INSERT INTO tool (tool_name, AvailableQuantity) VALUES (%s, %s)", 
                    (tool_name, qty))
     conn.commit()
