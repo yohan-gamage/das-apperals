@@ -45,7 +45,7 @@ mail = Mail(app)
 def get_db():
     # Supabase uses a single Connection URI string
     # Format: postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
-    conn = psycopg2.connect(os.getenv('postgresql://postgres:[YOUR-PASSWORD]@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres'))
+    conn = psycopg2.connect(os.getenv('postgresql://postgres:Rcc@21705/11E@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres'))
     return conn
 
 
