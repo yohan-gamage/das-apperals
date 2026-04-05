@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-import mysql.connector
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import os
 import random, time
@@ -42,14 +43,9 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME', 'dasapparealsmain
 mail = Mail(app)
 
 def get_db():
-    # Updated for Cloud Hosting (Vercel cannot connect to localhost)
-    conn = mysql.connector.connect(
-        host=os.getenv('DB_HOST', 'localhost'),
-        user=os.getenv('DB_USER', 'root'),
-        password=os.getenv('DB_PASSWORD', '1234'),
-        database=os.getenv('DB_NAME', 'das_apparels'),
-        port=int(os.getenv('DB_PORT', 3306))
-    )
+    # Supabase uses a single Connection URI string
+    # Format: postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+    conn = psycopg2.connect(os.getenv('postgresql://postgres:[YOUR-PASSWORD]@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres'))
     return conn
 
 
@@ -60,7 +56,7 @@ def inject_ongoing_count():
     if 'employee_id' in session:
         try:
             conn = get_db()
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             # Count only PENDING jobs specifically assigned to this user
             cursor.execute("""
                 SELECT COUNT(*) as count 
@@ -86,7 +82,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         conn = get_db()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("SELECT * FROM employee WHERE username=%s", (username,))
         emp = cursor.fetchone()
         cursor.close()
@@ -163,7 +159,7 @@ def register():
 
         # ── DB checks ────────────────────────────────────────
         conn   = get_db()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         cursor.execute("SELECT * FROM employee WHERE employeeID=%s", (employee_id,))
         if cursor.fetchone():
@@ -210,7 +206,7 @@ def login_required(f):
 @login_required
 def dashboard():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Pending'")
     pending = cursor.fetchone()['cnt']
     cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Ongoing'")
@@ -230,7 +226,7 @@ def dashboard():
 def report_issue():
     # Note: No @login_required here so anyone can access it
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     if request.method == 'POST':
         asset_id = request.form['asset_id']
@@ -259,7 +255,7 @@ def report_issue():
 @login_required
 def my_profile():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     emp_id = session.get('employee_id')
 
     if request.method == 'POST':
@@ -298,7 +294,7 @@ def my_profile():
 @login_required
 def my_jobs():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     emp_id = session.get('employee_id')
 
     # This query finds jobs where THIS employee is specifically assigned
@@ -326,7 +322,7 @@ def my_jobs():
 @maintenance_only
 def new_job():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     if request.method == 'POST':
         desc = request.form['description']
         asset_id = request.form['asset_id']
@@ -362,7 +358,7 @@ def new_job():
 def view_jobs():
     filter_type = request.args.get('filter', 'all')
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     base_query = """
         SELECT j.*, a.name as asset_name, a.category, l.locationName
         FROM maintenancejob j
@@ -386,7 +382,7 @@ def view_jobs():
 @login_required
 def job_detail(job_id):
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("""
         SELECT j.*, a.name as asset_name, a.category, l.locationName
         FROM maintenancejob j
@@ -443,7 +439,7 @@ def assign_employee(job_id):
     emp_id = request.form['employee_id']
     assigned_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT * FROM jobassignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
     existing = cursor.fetchone()
     if existing:
@@ -483,7 +479,7 @@ def assign_tool(job_id):
     quantity = int(request.form['quantity'])
     borrow_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT * FROM tool WHERE toolID=%s", (tool_id,))
     tool = cursor.fetchone()
     if not tool or tool['AvailableQuantity'] < quantity:
@@ -509,7 +505,7 @@ def return_tool(job_id, usage_id):
     return_date = datetime.now().strftime('%Y-%m-%d')
     comment = request.form.get('damage_comment', '').strip()
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT * FROM toolusage WHERE usageID=%s", (usage_id,))
     usage = cursor.fetchone()
     if usage and not usage['returnDate']:
@@ -581,7 +577,7 @@ def remove_tool_dropdown():
     qty_to_remove = int(request.form.get('quantity'))
     
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     # Check current quantity first
     cursor.execute("SELECT availableQuantity FROM tool WHERE toolID = %s", (tool_id,))
@@ -603,7 +599,7 @@ def remove_tool_dropdown():
 @login_required
 def view_requests():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     # We join with Asset and Location to get the names, not just IDs
     cursor.execute("""
@@ -625,7 +621,7 @@ def view_requests():
 @login_required
 def reports():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT status, COUNT(*) as count FROM maintenancejob GROUP BY status")
     by_status = cursor.fetchall()
     cursor.execute("""
@@ -671,7 +667,7 @@ def reports():
 @manager_only
 def inventory_management():
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
     
     # Fetching Locations for the Add Asset dropdown
     cursor.execute("SELECT locationID, locationName FROM location ORDER BY locationName ASC")
