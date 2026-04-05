@@ -44,7 +44,7 @@ mail = Mail(app)
 
 def get_db():
     # This tells Python to go look in the Vercel Settings for the 'DATABASE_URL'
-    db_url = os.getenv('postgresql://postgres:Rcc@21705/11E@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres')
+    db_url = os.getenv('postgresql://postgres:yohan123gamage@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres')
     conn = psycopg2.connect(db_url)
     return conn
 
