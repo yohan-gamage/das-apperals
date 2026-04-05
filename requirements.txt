@@ -1,6 +1,7 @@
 flask
 mysql-connector-python
 flask-mail
+psycopg2-binary
 gunicorn
 pymysql
 cryptography
