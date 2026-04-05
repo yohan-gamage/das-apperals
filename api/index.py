@@ -55,7 +55,7 @@ def get_db():
         db_url = db_url.replace("postgres://", "postgresql://", 1)
         
     # 4. Connect using the fixed URL
-    conn = psycopg2.connect(db_url)
+    conn = psycopg2.connect(db_url, connect_timeout=10)
     return conn
 
 
