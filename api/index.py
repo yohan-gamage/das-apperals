@@ -43,8 +43,18 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME', 'dasapparealsmain
 mail = Mail(app)
 
 def get_db():
-    # This tells Python to go look in the Vercel Settings for the 'DATABASE_URL'
+    # 1. Get the variable from Vercel's settings
     db_url = os.getenv('postgresql://postgres:yohan123gamage@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres')
+    
+    # 2. Check if the variable actually exists to avoid the 'socket' error
+    if not db_url:
+        raise ValueError("DATABASE_URL is not set in Vercel Environment Variables")
+
+    # 3. Fix the prefix if it's 'postgres://' (psycopg2 needs 'postgresql://')
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        
+    # 4. Connect using the fixed URL
     conn = psycopg2.connect(db_url)
     return conn
 
