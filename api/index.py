@@ -44,7 +44,7 @@ mail = Mail(app)
 
 def get_db():
     # 1. Get the variable from Vercel's settings
-    db_url = os.getenv('postgresql://postgres:yohan123gamage@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres')
+    db_url = os.getenv('DATABASE_URL')
     
     # 2. Check if the variable actually exists to avoid the 'socket' error
     if not db_url:
