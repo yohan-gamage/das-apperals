@@ -7,7 +7,7 @@ import random, time
 from flask_mail import Mail, Message
 from functools import wraps
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.secret_key = os.getenv('SECRET_KEY', 'das_apparels_maintenance_secret_2024')
 app.config['SESSION_PERMANENT'] = False
 
