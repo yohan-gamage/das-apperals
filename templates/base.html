@@ -19,13 +19,17 @@
                 <div class="brand-sub">Maintenance Division</div>
             </div>
         </div>
-        <div class="nav-user">
-            <div class="user-avatar">{{ session.employee_name[0] }}</div>
-            <div>
-                <div class="user-name">{{ session.employee_name }}</div>
-                <div class="user-role">{{ session.username }}</div>
+        <div class="profile-section" style="padding: 20px; border-bottom: 1px solid var(--bg3); position: relative;">
+            <a href="{{ url_for('my_profile') }}" class="profile-trigger" style="text-decoration: none; display: flex; align-items: center; gap: 12px; transition: 0.2s;">
+                <div class="avatar-circle" style="width: 40px; height: 40px; background: #f1c40f; color: #1a1a1a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">
+                    {{ session.employee_name[0] | upper }}
+                </div>
+                <div class="profile-text">
+                    <h4 style="margin: 0; color: var(--text); font-size: 14px;">{{ session.employee_name }}</h4>
+                    <small style="color: var(--text-muted); font-size: 11px;">@{{ session.username }}</small>
+                </div>
+            </a>
             </div>
-        </div>
         <ul class="nav-links">
             <li><a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                 <span class="nav-icon">▣</span> Dashboard
