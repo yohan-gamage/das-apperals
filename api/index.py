@@ -7,23 +7,13 @@ from flask_mail import Mail, Message
 from functools import wraps
 
 app = Flask(__name__)
-
-# --- CONFIGURATION ---
 app.secret_key = os.getenv('SECRET_KEY', 'das_apparels_maintenance_secret_2024')
 app.config['SESSION_PERMANENT'] = False
-
-# Mail config using Environment Variables
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'dasapparealsmaintenance@gmail.com')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', 'jbco quxl nzln rzok')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME', 'dasapparealsmaintenance@gmail.com')
-mail = Mail(app)
 
 def manager_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Allow if user is 'Management' OR 'Admin'
         role = session.get('speciality')
         if role not in ['Management', 'Admin']:
             flash('Access denied. Admin or Management required.', 'error')
@@ -34,6 +24,7 @@ def manager_only(f):
 def maintenance_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Allow if user is 'Maintenance' OR 'Admin'
         role = session.get('speciality')
         if role not in ['Maintenance', 'Admin']:
             flash('Access Denied. Admin or Maintenance Specialist required.', 'error')
@@ -41,7 +32,17 @@ def maintenance_only(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# Mail config — Updated to use Environment Variables
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'dasapparealsmaintenance@gmail.com')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', 'jbco quxl nzln rzok')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME', 'dasapparealsmaintenance@gmail.com')
+mail = Mail(app)
+
 def get_db():
+    # Updated for Cloud Hosting (Vercel cannot connect to localhost)
     conn = mysql.connector.connect(
         host=os.getenv('DB_HOST', 'localhost'),
         user=os.getenv('DB_USER', 'root'),
@@ -51,13 +52,16 @@ def get_db():
     )
     return conn
 
+
+# ─── GLOBAL CONTEXT PROCESSOR (NEW) ───────────────────────────────────────
 @app.context_processor
 def inject_ongoing_count():
+    # This function makes 'pending_count' available to EVERY .html file automatically
     if 'employee_id' in session:
         try:
             conn = get_db()
             cursor = conn.cursor(dictionary=True)
-            # FIX: Lowercase table names
+            # Count only PENDING jobs specifically assigned to this user
             cursor.execute("""
                 SELECT COUNT(*) as count 
                 FROM jobassignment ja
@@ -83,7 +87,6 @@ def login():
         password = request.form['password']
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
-        # FIX: Lowercase 'employee'
         cursor.execute("SELECT * FROM employee WHERE username=%s", (username,))
         emp = cursor.fetchone()
         cursor.close()
@@ -104,10 +107,12 @@ def send_otp():
     if not email:
         flash('Email is required to send OTP', 'error')
         return redirect(url_for('register'))
+
     otp = str(random.randint(100000, 999999))
     session['otp'] = otp
     session['otp_email'] = email
-    session['otp_expiry'] = time.time() + 300 
+    session['otp_expiry'] = time.time() + 300  # 5 minutes
+
     msg = Message('Your DAS Apparels OTP', recipients=[email])
     msg.body = f'Your one-time password is: {otp}\n\nThis code expires in 5 minutes.'
     try:
@@ -115,6 +120,7 @@ def send_otp():
         flash('OTP sent to your email. Check your inbox.', 'success')
     except Exception as e:
         flash('Failed to send OTP. Check email configuration.', 'error')
+
     return redirect(url_for('register'))
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -128,12 +134,17 @@ def register():
         password    = request.form['password']
         confirm     = request.form['confirm']
         otp_entered = request.form.get('otp', '').strip()
+
+        # ── Two-step password check ──────────────────────────
         if password != confirm:
             flash('Passwords do not match', 'error')
             return render_template('register.html')
+
+        # ── OTP verification ─────────────────────────────────
         stored_otp    = session.get('otp')
         stored_email  = session.get('otp_email')
         otp_expiry    = session.get('otp_expiry', 0)
+
         if not stored_otp:
             flash('Please request an OTP first', 'error')
             return render_template('register.html')
@@ -144,22 +155,29 @@ def register():
         if otp_entered != stored_otp or email != stored_email:
             flash('Invalid OTP or email mismatch', 'error')
             return render_template('register.html')
+
+        # ── Clear OTP from session ───────────────────────────
         session.pop('otp', None)
         session.pop('otp_email', None)
         session.pop('otp_expiry', None)
+
+        # ── DB checks ────────────────────────────────────────
         conn   = get_db()
         cursor = conn.cursor(dictionary=True)
-        # FIX: Lowercase 'employee'
+
         cursor.execute("SELECT * FROM employee WHERE employeeID=%s", (employee_id,))
         if cursor.fetchone():
             flash('Employee ID already registered', 'error')
             cursor.close(); conn.close()
             return render_template('register.html')
+
         cursor.execute("SELECT * FROM employee WHERE username=%s", (username,))
         if cursor.fetchone():
             flash('Username already taken, choose another', 'error')
             cursor.close(); conn.close()
             return render_template('register.html')
+
+        # ── Insert ───────────────────────────────────────────
         cursor.execute(
             "INSERT INTO employee (employeeID, name, speciality, username, passwordHash, salt) "
             "VALUES (%s,%s,%s,%s,%s,%s)",
@@ -169,6 +187,7 @@ def register():
         cursor.close(); conn.close()
         flash('Account created! You can now login.', 'success')
         return redirect(url_for('login'))
+
     return render_template('register.html')
 
 @app.route('/logout')
@@ -177,6 +196,7 @@ def logout():
     return redirect(url_for('login'))
 
 def login_required(f):
+    from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'employee_id' not in session:
@@ -191,7 +211,6 @@ def login_required(f):
 def dashboard():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase 'maintenancejob'
     cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Pending'")
     pending = cursor.fetchone()['cnt']
     cursor.execute("SELECT COUNT(*) as cnt FROM maintenancejob WHERE status='Ongoing'")
@@ -205,18 +224,20 @@ def dashboard():
     stats = {'pending': pending, 'ongoing': ongoing, 'done': done, 'total': total}
     return render_template('dashboard.html', stats=stats)
 
-# ─── ANONYMOUS REPORTING ──────────────────────────────────────────────
+# ─── ANONYMOUS REPORTING (NEW) ──────────────────────────────────────────────
 
 @app.route('/report_issue', methods=['GET', 'POST'])
 def report_issue():
+    # Note: No @login_required here so anyone can access it
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
+    
     if request.method == 'POST':
         asset_id = request.form['asset_id']
         description = request.form['description']
         mobile = request.form['mobile']
         today = datetime.now().strftime('%Y-%m-%d')
-        # FIX: Lowercase 'report', Note: AssetID is capitalized in SQL schema
+        
         cursor.execute(
             "INSERT INTO report (AssetID, description, mobileNumber, status, reportDate) VALUES (%s, %s, %s, %s, %s)",
             (asset_id, description, mobile, 'Pending', today)
@@ -226,7 +247,8 @@ def report_issue():
         conn.close()
         flash('Issue reported successfully! Maintenance will check it soon.', 'success')
         return redirect(url_for('login'))
-    # FIX: Lowercase 'asset' - This was the exact error from your Vercel log!
+
+    # Fetch assets for the dropdown menu
     cursor.execute("SELECT assetID, name FROM asset")
     assets = cursor.fetchall()
     cursor.close()
@@ -239,12 +261,15 @@ def my_profile():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     emp_id = session.get('employee_id')
+
     if request.method == 'POST':
+        # Get data from the profile form
         new_name = request.form.get('name')
         new_username = request.form.get('username')
         new_password = request.form.get('password')
-        # FIX: Lowercase 'employee'
-        if new_password:
+
+        # Update the database
+        if new_password: # Only update password if they typed a new one
             cursor.execute(
                 "UPDATE employee SET name=%s, username=%s, passwordHash=%s WHERE employeeID=%s",
                 (new_name, new_username, new_password, emp_id)
@@ -254,14 +279,19 @@ def my_profile():
                 "UPDATE employee SET name=%s, username=%s WHERE employeeID=%s",
                 (new_name, new_username, emp_id)
             )
+        
         conn.commit()
+        # Update the session so the sidebar name changes immediately
         session['employee_name'] = new_name
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('my_profile'))
+
+    # GET request: Show the current user data
     cursor.execute("SELECT * FROM employee WHERE employeeID = %s", (emp_id,))
     user_data = cursor.fetchone()
     cursor.close()
     conn.close()
+    
     return render_template('profile.html', user=user_data)
 
 @app.route('/my-jobs')
@@ -270,7 +300,9 @@ def my_jobs():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     emp_id = session.get('employee_id')
-    # FIX: Lowercase table names
+
+    # This query finds jobs where THIS employee is specifically assigned
+    # It joins the JobAssignment junction table with the MaintenanceJob table
     cursor.execute("""
         SELECT j.jobID, j.assetID, j.description, j.report_date, j.status, a.name AS asset_name
         FROM maintenancejob j
@@ -279,9 +311,12 @@ def my_jobs():
         WHERE ja.employeeID = %s
         ORDER BY j.report_date DESC
     """, (emp_id,))
+    
     personal_jobs = cursor.fetchall()
     cursor.close()
     conn.close()
+    
+    # Ensure you have a 'my_jobs.html' file in your templates folder
     return render_template('my_jobs.html', jobs=personal_jobs)
 
 # ─── JOBS ────────────────────────────────────────────────────────────────────
@@ -296,13 +331,13 @@ def new_job():
         desc = request.form['description']
         asset_id = request.form['asset_id']
         report_date = datetime.now().strftime('%Y-%m-%d')
-        # FIX: Lowercase table names
         cursor.execute(
             "INSERT INTO maintenancejob (description, report_date, status, assetID) VALUES (%s,%s,%s,%s)",
             (desc, report_date, 'Pending', asset_id)
         )
+    
         cursor.execute(
-            "UPDATE report SET status = 'Request Reviewed' WHERE AssetID = %s AND status = 'Pending'",
+            "UPDATE report SET status = 'Request Reviewed' WHERE assetID = %s AND status = 'Pending'",
             (asset_id,)
         )
         conn.commit()
@@ -313,7 +348,7 @@ def new_job():
     cursor.execute("""
         SELECT DISTINCT a.assetID, a.name, l.locationName AS location_name 
         FROM asset a
-        JOIN report r ON a.assetID = r.AssetID
+        JOIN report r ON a.assetID = r.assetID
         JOIN location l ON a.locationID = l.locationID
         WHERE r.status = 'Pending'
         """)
@@ -328,7 +363,6 @@ def view_jobs():
     filter_type = request.args.get('filter', 'all')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table names
     base_query = """
         SELECT j.*, a.name as asset_name, a.category, l.locationName
         FROM maintenancejob j
@@ -353,7 +387,6 @@ def view_jobs():
 def job_detail(job_id):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table names
     cursor.execute("""
         SELECT j.*, a.name as asset_name, a.category, l.locationName
         FROM maintenancejob j
@@ -375,7 +408,7 @@ def job_detail(job_id):
     assigned = cursor.fetchall()
     cursor.execute("""
         SELECT tu.*, t.tool_name
-        FROM toolusage tu JOIN tool t ON tu.toolID = t.toolID
+        FROM toolusage tu JOIN Tool t ON tu.toolID = t.toolID
         WHERE tu.jobID=%s
     """, (job_id,))
     tools = cursor.fetchall()
@@ -396,7 +429,6 @@ def update_status(job_id):
     new_status = request.form['status']
     conn = get_db()
     cursor = conn.cursor()
-    # FIX: Lowercase table name
     cursor.execute("UPDATE maintenancejob SET status=%s WHERE jobID=%s", (new_status, job_id))
     conn.commit()
     cursor.close()
@@ -412,7 +444,6 @@ def assign_employee(job_id):
     assigned_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table name
     cursor.execute("SELECT * FROM jobassignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
     existing = cursor.fetchone()
     if existing:
@@ -438,7 +469,6 @@ def assign_employee(job_id):
 def remove_employee(job_id, emp_id):
     conn = get_db()
     cursor = conn.cursor()
-    # FIX: Lowercase table name
     cursor.execute("DELETE FROM jobassignment WHERE jobID=%s AND employeeID=%s", (job_id, emp_id))
     conn.commit()
     cursor.close()
@@ -454,7 +484,6 @@ def assign_tool(job_id):
     borrow_date = datetime.now().strftime('%Y-%m-%d')
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase 'tool'
     cursor.execute("SELECT * FROM tool WHERE toolID=%s", (tool_id,))
     tool = cursor.fetchone()
     if not tool or tool['AvailableQuantity'] < quantity:
@@ -481,7 +510,6 @@ def return_tool(job_id, usage_id):
     comment = request.form.get('damage_comment', '').strip()
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table names
     cursor.execute("SELECT * FROM toolusage WHERE usageID=%s", (usage_id,))
     usage = cursor.fetchone()
     if usage and not usage['returnDate']:
@@ -491,6 +519,7 @@ def return_tool(job_id, usage_id):
             (usage['quantity'], usage['toolID'])
         )
         conn.commit()
+
         if comment:
             flash(f'Tool returned with damage report: "{comment}"', 'warning')
         else:
@@ -506,10 +535,13 @@ def delete_job(job_id):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # FIX: Lowercase table names
+        # 1. First, delete child records due to Foreign Key constraints
         cursor.execute("DELETE FROM toolusage WHERE jobID=%s", (job_id,))
         cursor.execute("DELETE FROM jobassignment WHERE jobID=%s", (job_id,))
+        
+        # 2. Now delete the actual job
         cursor.execute("DELETE FROM maintenancejob WHERE jobID=%s", (job_id,))
+        
         conn.commit()
         flash(f'Job #{job_id:04d} has been permanently deleted.', 'success')
     except Exception as e:
@@ -518,9 +550,10 @@ def delete_job(job_id):
     finally:
         cursor.close()
         conn.close()
+    
     return redirect(url_for('view_jobs'))
 
-# ─── INVENTORY MANAGEMENT ───────────────────────────────────
+# ─── INVENTORY MANAGEMENT (NEW SECTION) ───────────────────────────────────
 
 @app.route('/inventory/remove-asset', methods=['POST'])
 @login_required
@@ -530,12 +563,12 @@ def remove_asset_dropdown():
     conn = get_db()
     cursor = conn.cursor()
     try:
-        # FIX: Lowercase 'asset'
         cursor.execute("DELETE FROM asset WHERE assetID = %s", (asset_id,))
         conn.commit()
         flash('Asset removed successfully!', 'success')
     except:
         flash('Error: This asset is linked to existing job records.', 'danger')
+    
     cursor.close()
     conn.close()
     return redirect(url_for('inventory_management'))
@@ -546,18 +579,22 @@ def remove_asset_dropdown():
 def remove_tool_dropdown():
     tool_id = request.form.get('tool_id')
     qty_to_remove = int(request.form.get('quantity'))
+    
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase 'tool'
-    cursor.execute("SELECT AvailableQuantity FROM tool WHERE toolID = %s", (tool_id,))
+    
+    # Check current quantity first
+    cursor.execute("SELECT availableQuantity FROM tool WHERE toolID = %s", (tool_id,))
     tool = cursor.fetchone()
-    if tool and tool['AvailableQuantity'] >= qty_to_remove:
-        new_qty = tool['AvailableQuantity'] - qty_to_remove
-        cursor.execute("UPDATE tool SET AvailableQuantity = %s WHERE toolID = %s", (new_qty, tool_id))
+    
+    if tool and tool['availableQuantity'] >= qty_to_remove:
+        new_qty = tool['availableQuantity'] - qty_to_remove
+        cursor.execute("UPDATE tool SET availableQuantity = %s WHERE toolID = %s", (new_qty, tool_id))
         conn.commit()
         flash(f'Removed {qty_to_remove} items from tool stock.', 'success')
     else:
         flash('Error: Not enough stock to remove that amount.', 'warning')
+        
     cursor.close()
     conn.close()
     return redirect(url_for('inventory_management'))
@@ -567,15 +604,17 @@ def remove_tool_dropdown():
 def view_requests():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table names
+    
+    # We join with Asset and Location to get the names, not just IDs
     cursor.execute("""
         SELECT r.reportID, a.name AS asset_name, l.locationName AS location_name, r.description, r.status, r.reportDate
         FROM report r
-        JOIN asset a ON r.AssetID = a.assetID
+        JOIN asset a ON r.assetID = a.assetID
         JOIN location l ON a.locationID = l.locationID
         ORDER BY r.reportDate DESC
     """)
     all_requests = cursor.fetchall()
+    
     cursor.close()
     conn.close()
     return render_template('requests.html', requests=all_requests)
@@ -587,7 +626,6 @@ def view_requests():
 def reports():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table names
     cursor.execute("SELECT status, COUNT(*) as count FROM maintenancejob GROUP BY status")
     by_status = cursor.fetchall()
     cursor.execute("""
@@ -624,7 +662,9 @@ def reports():
                            tool_report=tool_report,
                            by_category=by_category)
 
-# ─── INVENTORY MANAGEMENT ─────────────────────────────────────────────
+# ... (existing reports code) ...
+
+# ─── INVENTORY MANAGEMENT (NEW) ─────────────────────────────────────────────
 
 @app.route('/inventory')
 @login_required
@@ -632,16 +672,27 @@ def reports():
 def inventory_management():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    # FIX: Lowercase table names
+    
+    # Fetching Locations for the Add Asset dropdown
     cursor.execute("SELECT locationID, locationName FROM location ORDER BY locationName ASC")
     locations = cursor.fetchall()
+    
+    # Fetching Assets for the Remove Asset dropdown
     cursor.execute("SELECT assetID, name FROM asset ORDER BY name ASC")
     assets = cursor.fetchall()
-    cursor.execute("SELECT toolID, tool_name, AvailableQuantity FROM tool ORDER BY tool_name ASC")
+    
+    # Fetching Tools for the Reduce Stock dropdown
+    cursor.execute("SELECT toolID, tool_name, availableQuantity FROM tool ORDER BY tool_name ASC")
     tools = cursor.fetchall()
+    
     cursor.close()
     conn.close()
-    return render_template('inventory.html', locations=locations, assets=assets, tools=tools)
+    
+    # CRITICAL: You must pass ALL three lists here
+    return render_template('inventory.html', 
+                           locations=locations, 
+                           assets=assets, 
+                           tools=tools)
 
 @app.route('/inventory/add_asset', methods=['POST'])
 @login_required
@@ -652,14 +703,13 @@ def add_asset():
     loc_id = request.form['location_id']
     conn = get_db()
     cursor = conn.cursor()
-    # FIX: Lowercase 'asset'
     cursor.execute("INSERT INTO asset (name, category, locationID) VALUES (%s, %s, %s)", 
                    (name, category, loc_id))
     conn.commit()
     cursor.close()
     conn.close()
     flash('New Asset added successfully!', 'success')
-    return redirect(url_for('inventory_management'))
+    return redirect(url_for('inventory'))
 
 @app.route('/inventory/add_tool', methods=['POST'])
 @login_required
@@ -669,14 +719,15 @@ def add_tool():
     qty = request.form['quantity']
     conn = get_db()
     cursor = conn.cursor()
-    # FIX: Lowercase 'tool'
     cursor.execute("INSERT INTO tool (tool_name, AvailableQuantity) VALUES (%s, %s)", 
                    (tool_name, qty))
     conn.commit()
     cursor.close()
     conn.close()
     flash('New Tool added to store!', 'success')
-    return redirect(url_for('inventory_management'))
+    return redirect(url_for('inventory'))
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
