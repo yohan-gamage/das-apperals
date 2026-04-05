@@ -99,7 +99,7 @@ def login():
         conn.close()
         if emp and password == emp['passwordhash']:
             session.permanent = False
-            session['employee_id'] = emp['employeeID']
+            session['employee_id'] = emp['employeeid']
             session['employee_name'] = emp['name']
             session['username'] = emp['username']
             session['speciality'] = emp['speciality']
