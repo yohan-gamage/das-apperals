@@ -43,10 +43,9 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME', 'dasapparealsmain
 mail = Mail(app)
 
 def get_db():
-    conn = psycopg2.connect(os.getenv('postgresql://postgres:Rcc@21705/11E@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres'))
-    curr = conn.cursor()
-    curr.execute("SET search_path TO public") # Forces the app to use your tables
-    curr.close()
+    # This tells Python to go look in the Vercel Settings for the 'DATABASE_URL'
+    db_url = os.getenv('postgresql://postgres:Rcc@21705/11E@db.esntruvxxefrrtxpnngf.supabase.co:5432/postgres')
+    conn = psycopg2.connect(db_url)
     return conn
 
 
