@@ -97,7 +97,7 @@ def login():
         emp = cursor.fetchone()
         cursor.close()
         conn.close()
-        if emp and password == emp['passwordHash']:
+        if emp and password == emp['passwordhash']:
             session.permanent = False
             session['employee_id'] = emp['employeeID']
             session['employee_name'] = emp['name']
