@@ -185,9 +185,9 @@ def register():
 
         # ── Insert ───────────────────────────────────────────
         cursor.execute(
-            "INSERT INTO employee (employeeID, name, speciality, username, passwordHash, salt) "
-            "VALUES (%s,%s,%s,%s,%s,%s)",
-            (employee_id, name, speciality, username, password, '')
+            "INSERT INTO employee (name, speciality, username, passwordHash, salt) "
+            "VALUES (%s,%s,%s,%s,%s)",
+            (name, speciality, username, password, '')
         )
         conn.commit()
         cursor.close(); conn.close()
