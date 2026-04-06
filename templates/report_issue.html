@@ -13,8 +13,8 @@
                         style="width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--bg3); background: var(--bg2); color: var(--text);">
                     <option value="" disabled selected>-- Select Asset (ID - Name) --</option>
                     {% for asset in assets %}
-                    <option value="{{ asset.assetID }}">
-                        #{{ "%04d" % asset.assetID }} — {{ asset.name }}
+                    <option value="{{ asset.assetid }}">
+                        #{{ "%04d" % asset.assetid }} — {{ asset.name }}
                     </option>
                     {% endfor %}
                 </select>
