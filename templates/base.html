@@ -76,6 +76,11 @@
     {% endif %}
 
     <main class="main-content {% if not session.employee_id %}full-width{% endif %}">
+        {% if session.employee_id %}
+        <button id="menu-toggle" class="mobile-menu-btn">
+            <span class="nav-icon">☰</span>
+        </button>
+        {% endif %}
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         <div class="flash-container">
