@@ -32,7 +32,7 @@
                     <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Location</label>
                     <select name="location_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
                         {% for loc in locations %}
-                        <option value="{{ loc.locationID }}">{{ loc.locationName }}</option>
+                        <option value="{{ loc.locationid }}">{{ loc.locationname }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -78,7 +78,7 @@
                     <select name="asset_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
                         <option value="" disabled selected>— Select Asset —</option>
                         {% for asset in assets %}
-                            <option value="{{ asset.assetID }}">#{{ "%04d" % asset.assetid }} - {{ asset.name }}</option>
+                            <option value="{{ asset.assetid }}">#{{ "%04d" % asset.assetid }} - {{ asset.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
