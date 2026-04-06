@@ -675,7 +675,7 @@ def reports():
 @app.route('/inventory')
 @login_required
 @manager_only
-def inventory_management():
+def inventory():
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     
