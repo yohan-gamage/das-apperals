@@ -21,10 +21,10 @@
             <tbody>
                 {% for r in requests %}
                 <tr style="border-bottom:1px solid var(--bg3);">
-                    <td style="padding:12px;">#{{ "%04d" % r.reportID }}</td>
+                    <td style="padding:12px;">#{{ "%04d" % r.reportid }}</td>
                     <td style="padding:12px; font-weight:600;">{{ r.asset_name }}</td>
                     <td style="padding:12px;">{{ r.location_name }}</td>
-                    <td style="padding:12px;">{{ r.reportDate }}</td>
+                    <td style="padding:12px;">{{ r.reportdate }}</td>
                     <td style="padding:12px;">
                         {% if r.status == 'Pending' %}
                             <span style="background:#f1c40f22; color:#f1c40f; padding:4px 8px; border-radius:4px; font-size:12px;">🟡 Pending</span>
