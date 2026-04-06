@@ -3,53 +3,118 @@
 {% block content %}
 <div class="page-header">
     <h1>Inventory Management</h1>
-    <p>Add new assets and maintenance tools to the system</p>
+    <p>Add new assets and maintenance tools to the system | Remove assets and tools from the system</p>
 </div>
 
 <div class="reports-grid">
-    <div class="card">
-        <div class="card-header"><span class="card-title">＋ Add New Asset</span></div>
-        <div class="card-body">
+    <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--bg3);">
+        <div style="padding: 15px; border-bottom: 1px solid var(--bg3); background: rgba(241, 196, 15, 0.1);">
+            <h5 style="margin: 0; color: #f1c40f; display: flex; align-items: center; gap: 10px;">
+                ＋ ADD NEW ASSET
+            </h5>
+        </div>
+        <div style="padding: 20px;">
             <form method="POST" action="{{ url_for('add_asset') }}">
                 <div class="form-group">
-                    <label>Asset Name</label>
-                    <input type="text" name="name" placeholder="e.g., Juki Sewing Machine" required>
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Asset Name</label>
+                    <input type="text" name="name" placeholder="e.g., Juki Sewing Machine" required style="width: 100%; padding: 12px; margin-top: 8px;">
                 </div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <select name="category" required>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Category</label>
+                    <select name="category" required style="width: 100%; padding: 12px; margin-top: 8px;">
                         <option value="Sewing">Sewing</option>
                         <option value="Cutting">Cutting</option>
                         <option value="Electrical">Electrical</option>
                         <option value="Building">Building</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Location</label>
-                    <select name="location_id" required>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Location</label>
+                    <select name="location_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
                         {% for loc in locations %}
                         <option value="{{ loc.locationID }}">{{ loc.locationName }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width:100%;">Add Asset</button>
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 20px; padding: 12px; font-weight: 600;">Add Asset</button>
             </form>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header"><span class="card-title">＋ Add New Tool</span></div>
-        <div class="card-body">
+    <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--bg3);">
+        <div style="padding: 15px; border-bottom: 1px solid var(--bg3); background: rgba(241, 196, 15, 0.1);">
+            <h5 style="margin: 0; color: #f1c40f; display: flex; align-items: center; gap: 10px;">
+                ＋ ADD NEW TOOL
+            </h5>
+        </div>
+        <div style="padding: 20px;">
             <form method="POST" action="{{ url_for('add_tool') }}">
                 <div class="form-group">
-                    <label>Tool Name</label>
-                    <input type="text" name="tool_name" placeholder="e.g., Multimeter" required>
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Tool Name</label>
+                    <input type="text" name="tool_name" placeholder="e.g., Multimeter" required style="width: 100%; padding: 12px; margin-top: 8px;">
                 </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Initial Quantity</label>
+                    <input type="number" name="quantity" min="1" value="1" required style="width: 100%; padding: 12px; margin-top: 8px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 20px; padding: 12px; font-weight: 600;">Add Tool</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
+    
+    <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--bg3);">
+        <div style="padding: 15px; border-bottom: 1px solid var(--bg3); background: rgba(231, 76, 60, 0.05);">
+            <h5 style="margin: 0; color: #e74c3c; display: flex; align-items: center; gap: 10px;">
+                🗑️ REMOVE ASSET
+            </h5>
+        </div>
+        <div style="padding: 20px;">
+            <form action="{{ url_for('remove_asset_dropdown') }}" method="POST" onsubmit="return confirm('Permanently delete this asset?');">
                 <div class="form-group">
-                    <label>Initial Quantity</label>
-                    <input type="number" name="quantity" min="1" value="1" required>
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Select Asset to Remove</label>
+                    <select name="asset_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
+                        <option value="" disabled selected>— Select Asset —</option>
+                        {% for asset in assets %}
+                            <option value="{{ asset.assetID }}">#{{ "%04d" % asset.assetID }} - {{ asset.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width:100%;">Add Tool</button>
+                <button type="submit" class="btn" style="background: #e74c3c; color: white; width: 100%; margin-top: 20px; padding: 12px; font-weight: 600;">
+                    Remove Asset
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--bg3);">
+        <div style="padding: 15px; border-bottom: 1px solid var(--bg3); background: rgba(231, 76, 60, 0.05);">
+            <h5 style="margin: 0; color: #e74c3c; display: flex; align-items: center; gap: 10px;">
+                🗑️ REDUCE TOOL STOCK
+            </h5>
+        </div>
+        <div style="padding: 20px;">
+            <form action="{{ url_for('remove_tool_dropdown') }}" method="POST">
+                <div class="form-group">
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Select Tool</label>
+                    <select name="tool_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
+                        <option value="" disabled selected>— Select Tool —</option>
+                        {% for tool in tools %}
+                            <option value="{{ tool.toolID }}">
+                                {{ tool.tool_name }} (Available: {{ tool.availableQuantity }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase;">Quantity to Remove</label>
+                    <input type="number" name="quantity" min="1" value="1" required style="width: 100%; padding: 12px; margin-top: 8px;">
+                </div>
+                <button type="submit" class="btn" style="background: #e74c3c; color: white; width: 100%; margin-top: 20px; padding: 12px; font-weight: 600;">
+                    Update Tool Stock
+                </button>
             </form>
         </div>
     </div>
