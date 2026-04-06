@@ -522,7 +522,7 @@ def return_tool(job_id, usage_id):
         cursor.execute("UPDATE toolusage SET returnDate=%s, damage_comment=%s WHERE usageID=%s", (return_date, comment, usage_id))
         cursor.execute(
             "UPDATE tool SET AvailableQuantity = AvailableQuantity + %s WHERE toolID=%s",
-            (usage['quantity'], usage['toolID'])
+            (usage['quantity'], usage['toolid'])
         )
         conn.commit()
 
