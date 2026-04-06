@@ -826,8 +826,42 @@ select option { background: var(--bg3); }
 }
 
 @media (max-width: 768px) {
-    .main-content { margin-left: 0; padding: 16px; max-width: 100vw; }
-    .sidebar { display: none; }
+    /* 1. Show the Menu Toggle Button */
+    .mobile-menu-btn {
+        display: block;
+        background: var(--bg2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 10px 15px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        margin-bottom: 20px;
+        font-size: 18px;
+    }
+
+    /* 2. Setup the Sidebar to Slide */
+    .sidebar {
+        position: fixed;
+        left: -280px; /* Moves it off-screen to the left */
+        width: 260px;
+        z-index: 1000;
+        transition: left 0.3s ease-in-out;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+        display: flex; /* Overrides the previous display: none */
+    }
+
+    /* 3. Class added by JS to show the menu */
+    .sidebar.active {
+        left: 0;
+    }
+
+    /* 4. Content layout adjustments */
+    .main-content { 
+        margin-left: 0; 
+        padding: 16px; 
+        max-width: 100vw; 
+    }
+    
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .quick-actions { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
