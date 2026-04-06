@@ -492,7 +492,7 @@ def assign_tool(job_id):
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("SELECT * FROM tool WHERE toolID=%s", (tool_id,))
     tool = cursor.fetchone()
-    if not tool or tool['AvailableQuantity'] < quantity:
+    if not tool or tool['availablequantity'] < quantity:
         flash('Not enough quantity available for this tool', 'error')
     else:
         cursor.execute(
