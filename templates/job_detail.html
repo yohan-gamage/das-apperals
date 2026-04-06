@@ -42,7 +42,7 @@
                     </div>
                     <div class="meta-item">
                         <label>Location</label>
-                        <span>{{ job.locationName or '—' }}</span>
+                        <span>{{ job.locationname or '—' }}</span>
                     </div>
                     <div class="meta-item">
                         <label>Reported On</label>
@@ -58,7 +58,7 @@
                 <span class="card-title">Update Status</span>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('update_status', job_id=job.jobID) }}" class="status-form">
+                <form method="POST" action="{{ url_for('update_status', job_id=job.jobid) }}" class="status-form">
                     <select name="status" style="max-width:200px;">
                         <option value="Pending" {% if job.status == 'Pending' %}selected{% endif %}>Pending</option>
                         <option value="Ongoing" {% if job.status == 'Ongoing' %}selected{% endif %}>Ongoing</option>
@@ -88,7 +88,7 @@
                             <div class="chip-role">{{ emp.speciality or 'General' }}</div>
                         </div>
                         <div class="chip-date">{{ emp.assignedDate }}</div>
-                        <form method="POST" action="{{ url_for('remove_employee', job_id=job.jobID, emp_id=emp.employeeID) }}" style="margin-left:8px;">
+                        <form method="POST" action="{{ url_for('remove_employee', job_id=job.jobid, emp_id=emp.employeeid) }}" style="margin-left:8px;">
                             {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
                             <button type="submit" class="btn btn-danger btn-sm" 
                                 onclick="return confirm('Remove {{ emp.name }} from this job?')">✕</button>
@@ -103,13 +103,13 @@
                 <hr class="section-divider">
                 <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Assign Employee</p>
                 {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
-                <form method="POST" action="{{ url_for('assign_employee', job_id=job.jobID) }}" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <form method="POST" action="{{ url_for('assign_employee', job_id=job.jobid) }}" style="display:flex;gap:8px;flex-wrap:wrap;">
                     <select name="employee_id" style="flex:1;min-width:180px;">
                         <option value="" disabled selected>— Select employee —</option>
                         {% for emp in all_employees %}
-                        <option value="{{ emp.employeeID }}" {% if emp.employeeID in assigned_ids %}disabled{% endif %}>
+                        <option value="{{ emp.employeeID }}" {% if emp.employeeid in assigned_ids %}disabled{% endif %}>
                             {{ emp.name }} ({{ emp.speciality or 'General' }})
-                            {% if emp.employeeID in assigned_ids %} — Already assigned{% endif %}
+                            {% if emp.employeeid in assigned_ids %} — Already assigned{% endif %}
                         </option>
                         {% endfor %}
                     </select>
@@ -149,7 +149,7 @@
                         {% if t.returnDate %}
                             <span class="tool-returned">✓ Returned ({{ t.returnDate }})</span>
                         {% else %}
-                            <form method="POST" action="{{ url_for('return_tool', job_id=job.jobID, usage_id=t.usageID) }}" style="display:flex; gap:8px; align-items:center;">
+                            <form method="POST" action="{{ url_for('return_tool', job_id=job.jobid, usage_id=t.usageid) }}" style="display:flex; gap:8px; align-items:center;">
                                 <input type="text" name="damage_comment" placeholder="Any damages?" 
                                     style="font-size:11px; padding:4px; border:1px solid #ddd; border-radius:4px; width:100px;">
                                 <button type="submit" class="btn btn-green btn-sm">Return</button>
@@ -164,13 +164,13 @@
                 {% if all_tools %}
                 <hr class="section-divider">
                 <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:10px;">Borrow Tool</p>
-                <form method="POST" action="{{ url_for('assign_tool', job_id=job.jobID) }}">
+                <form method="POST" action="{{ url_for('assign_tool', job_id=job.jobid) }}">
                     <div class="form-group" style="margin-bottom:8px;">
                         <select name="tool_id" required>
                             <option value="" disabled selected>— Select tool —</option>
                             {% for tool in all_tools %}
-                            <option value="{{ tool.toolID }}">
-                                {{ tool.tool_name }} ({{ tool.AvailableQuantity }} avail.)
+                            <option value="{{ tool.toolid }}">
+                                {{ tool.tool_name }} ({{ tool.availablequantity }} avail.)
                             </option>
                             {% endfor %}
                         </select>
