@@ -6,10 +6,10 @@
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
             <a href="{{ url_for('view_jobs', filter='all') }}" style="color:var(--text-muted);font-size:13px;text-decoration:none;">← Back to Jobs</a>
         </div>
-        <h1>Job <span style="color:var(--accent);font-family:var(--font-mono);font-size:22px;">#{{ '%04d' % job.jobID }}</span></h1>
+        <h1>Job <span style="color:var(--accent);font-family:var(--font-mono);font-size:22px;">#{{ '%04d' % job.jobid }}</span></h1>
         {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
         <div style="margin-top: 15px;">
-            <form method="POST" action="{{ url_for('delete_job', job_id=job.jobID) }}" 
+            <form method="POST" action="{{ url_for('delete_job', job_id=job.jobid) }}" 
                 onsubmit="return confirm('WARNING: This will permanently delete this job and all its history. Proceed?')">
                 <button type="submit" class="btn btn-danger btn-sm" style="background-color: #dc3545; color: white;">
                     🗑 Delete Job
@@ -87,7 +87,7 @@
                             <div class="chip-name">{{ emp.name }}</div>
                             <div class="chip-role">{{ emp.speciality or 'General' }}</div>
                         </div>
-                        <div class="chip-date">{{ emp.assignedDate }}</div>
+                        <div class="chip-date">{{ emp.assigneddate }}</div>
                         <form method="POST" action="{{ url_for('remove_employee', job_id=job.jobid, emp_id=emp.employeeid) }}" style="margin-left:8px;">
                             {% if session.speciality == 'Maintenance' or session.speciality == 'Admin' %}
                             <button type="submit" class="btn btn-danger btn-sm" 
@@ -107,7 +107,7 @@
                     <select name="employee_id" style="flex:1;min-width:180px;">
                         <option value="" disabled selected>— Select employee —</option>
                         {% for emp in all_employees %}
-                        <option value="{{ emp.employeeID }}" {% if emp.employeeid in assigned_ids %}disabled{% endif %}>
+                        <option value="{{ emp.employeeid }}" {% if emp.employeeid in assigned_ids %}disabled{% endif %}>
                             {{ emp.name }} ({{ emp.speciality or 'General' }})
                             {% if emp.employeeid in assigned_ids %} — Already assigned{% endif %}
                         </option>
@@ -135,7 +135,7 @@
                         <span style="font-size:16px;">🔧</span>
                         <div style="flex:1;">
                             <div style="font-weight:500;">{{ t.tool_name }}</div>
-                            <div style="font-size:11px;color:var(--text-muted);">Borrowed: {{ t.borrowDate }}</div>
+                            <div style="font-size:11px;color:var(--text-muted);">Borrowed: {{ t.borrowdate }}</div>
         
                             {% if t.damage_comment %}
                             <div style="font-size:11px; color:#e74c3c; margin-top:4px; font-style:italic;">
@@ -146,8 +146,8 @@
     
                         <span class="tool-qty">×{{ t.quantity }}</span>
 
-                        {% if t.returnDate %}
-                            <span class="tool-returned">✓ Returned ({{ t.returnDate }})</span>
+                        {% if t.returndate %}
+                            <span class="tool-returned">✓ Returned ({{ t.returndate }})</span>
                         {% else %}
                             <form method="POST" action="{{ url_for('return_tool', job_id=job.jobid, usage_id=t.usageid) }}" style="display:flex; gap:8px; align-items:center;">
                                 <input type="text" name="damage_comment" placeholder="Any damages?" 
