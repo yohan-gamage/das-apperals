@@ -78,7 +78,7 @@
                     <select name="asset_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
                         <option value="" disabled selected>— Select Asset —</option>
                         {% for asset in assets %}
-                            <option value="{{ asset.assetID }}">#{{ "%04d" % asset.assetID }} - {{ asset.name }}</option>
+                            <option value="{{ asset.assetID }}">#{{ "%04d" % asset.assetid }} - {{ asset.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
