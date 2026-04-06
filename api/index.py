@@ -512,7 +512,8 @@ def assign_tool(job_id):
 @app.route('/jobs/<int:job_id>/return_tool/<int:usage_id>', methods=['POST'])
 @login_required
 def return_tool(job_id, usage_id):
-    return_date = datetime.now().strftime('%Y-%m-%d')
+    from datetime import datetime
+    return_date = datetime.now()
     comment = request.form.get('damage_comment', '').strip()
     conn = get_db()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
