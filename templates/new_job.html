@@ -27,7 +27,7 @@
                                 <option value="" disabled selected>-- Select Reported Asset --</option>
                                 {% for asset in assets %}
                                     <option value="{{ asset.assetID }}">
-                                        #{{ "%04d" % asset.assetID }} — {{ asset.name }} (Location: {{ asset.location_name }})
+                                        #{{ "%04d" % asset.assetid }} — {{ asset.name }} (Location: {{ asset.location_name }})
                                     </option>
                                 {% endfor %}
                             {% else %}
