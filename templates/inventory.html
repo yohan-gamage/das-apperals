@@ -102,8 +102,8 @@
                     <select name="tool_id" required style="width: 100%; padding: 12px; margin-top: 8px;">
                         <option value="" disabled selected>— Select Tool —</option>
                         {% for tool in tools %}
-                            <option value="{{ tool.toolID }}">
-                                {{ tool.tool_name }} (Available: {{ tool.availableQuantity }})
+                            <option value="{{ tool.toolid }}">
+                                {{ tool.tool_name }} (Available: {{ tool.availablequantity }})
                             </option>
                         {% endfor %}
                     </select>
