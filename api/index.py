@@ -422,7 +422,7 @@ def job_detail(job_id):
     all_employees = cursor.fetchall()
     cursor.execute("SELECT * FROM tool WHERE AvailableQuantity > 0 ORDER BY tool_name")
     all_tools = cursor.fetchall()
-    assigned_ids = [e['employeeID'] for e in assigned]
+    assigned_ids = [e['employeeid'] for e in assigned]
     cursor.close()
     conn.close()
     return render_template('job_detail.html', job=job, assigned=assigned,
